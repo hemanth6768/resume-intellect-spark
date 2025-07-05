@@ -5,11 +5,7 @@ import { Upload, Loader, FileText, AlertCircle, CheckCircle } from 'lucide-react
 interface ApiResponse {
   skills_detected: string[];
   experience_years: number;
-  questions_generated: {
-    easy: string[];
-    medium: string[];
-    hard: string[];
-  };
+  questions_generated: string;
 }
 
 const ResumeUploader = () => {
@@ -66,6 +62,22 @@ const ResumeUploader = () => {
     setFile(null);
     setResult(null);
     setError(null);
+  };
+
+  const formatQuestionsText = (text: string) => {
+    // Split the text into sections and format for better readability
+    const sections = text.split('**Level');
+    return sections.filter(section => section.trim()).map((section, index) => {
+      const lines = section.split('\n').filter(line => line.trim());
+      const title = lines[0]?.replace(/\*\*/g, '').trim();
+      const content = lines.slice(1).join('\n');
+      
+      return {
+        level: index + 1,
+        title: title || `Level ${index + 1}`,
+        content: content
+      };
+    });
   };
 
   return (
@@ -166,50 +178,56 @@ const ResumeUploader = () => {
               </div>
             </div>
 
-            <div className="grid gap-6">
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-green-600 mb-4 flex items-center">
-                  <span className="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
-                  Level 1 - Easy
-                </h3>
-                <ul className="space-y-3">
-                  {result.questions_generated.easy.map((question, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-green-500 mr-3 mt-1">•</span>
-                      <span className="text-gray-700">{question}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-yellow-600 mb-4 flex items-center">
-                  <span className="bg-yellow-100 text-yellow-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
-                  Level 2 - Medium
-                </h3>
-                <ul className="space-y-3">
-                  {result.questions_generated.medium.map((question, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-yellow-500 mr-3 mt-1">•</span>
-                      <span className="text-gray-700">{question}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-red-600 mb-4 flex items-center">
-                  <span className="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
-                  Level 3 - Hard
-                </h3>
-                <ul className="space-y-3">
-                  {result.questions_generated.hard.map((question, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-red-500 mr-3 mt-1">•</span>
-                      <span className="text-gray-700">{question}</span>
-                    </li>
-                  ))}
-                </ul>
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Generated Interview Questions</h2>
+              <div className="prose max-w-none">
+                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                  {result.questions_generated.split('\n').map((line, index) => {
+                    if (line.includes('**Level')) {
+                      return (
+                        <h3 key={index} className="text-xl font-bold text-blue-600 mt-6 mb-3">
+                          {line.replace(/\*\*/g, '')}
+                        </h3>
+                      );
+                    }
+                    if (line.includes('* **Goal:**')) {
+                      return (
+                        <p key={index} className="font-semibold text-green-600 mb-2">
+                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
+                        </p>
+                      );
+                    }
+                    if (line.includes('* **Time Allotted:**')) {
+                      return (
+                        <p key={index} className="font-semibold text-orange-600 mb-2">
+                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
+                        </p>
+                      );
+                    }
+                    if (line.includes('* **Questions:**')) {
+                      return (
+                        <p key={index} className="font-semibold text-purple-600 mb-3">
+                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
+                        </p>
+                      );
+                    }
+                    if (line.trim().match(/^\d+\./)) {
+                      return (
+                        <div key={index} className="bg-gray-50 p-4 rounded-lg mb-3 border-l-4 border-blue-400">
+                          <p className="font-medium">{line.trim()}</p>
+                        </div>
+                      );
+                    }
+                    if (line.trim() && !line.includes('*')) {
+                      return (
+                        <p key={index} className="mb-2 text-gray-600">
+                          {line}
+                        </p>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
               </div>
             </div>
 

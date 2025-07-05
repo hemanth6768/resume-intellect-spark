@@ -1,11 +1,16 @@
-
 import React, { useState } from 'react';
 import { Upload, Loader, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface ApiResponse {
   skills_detected: string[];
   experience_years: number;
-  questions_generated: string;
+  questions: {
+    level_1: string;
+    level_2: string;
+    level_3: string;
+  };
 }
 
 const ResumeUploader = () => {
@@ -64,20 +69,40 @@ const ResumeUploader = () => {
     setError(null);
   };
 
-  const formatQuestionsText = (text: string) => {
-    // Split the text into sections and format for better readability
-    const sections = text.split('**Level');
-    return sections.filter(section => section.trim()).map((section, index) => {
-      const lines = section.split('\n').filter(line => line.trim());
-      const title = lines[0]?.replace(/\*\*/g, '').trim();
-      const content = lines.slice(1).join('\n');
-      
-      return {
-        level: index + 1,
-        title: title || `Level ${index + 1}`,
-        content: content
-      };
+  const formatQuestions = (questionText: string) => {
+    return questionText.split('\n').filter(line => line.trim()).map((question, index) => {
+      const trimmedQuestion = question.trim();
+      if (trimmedQuestion.match(/^\d+\./)) {
+        return trimmedQuestion;
+      }
+      return trimmedQuestion;
     });
+  };
+
+  const getLevelTitle = (level: string) => {
+    switch (level) {
+      case 'level_1':
+        return 'Beginner Level';
+      case 'level_2':
+        return 'Intermediate Level';
+      case 'level_3':
+        return 'Advanced Level';
+      default:
+        return level.replace('_', ' ').toUpperCase();
+    }
+  };
+
+  const getLevelColor = (level: string) => {
+    switch (level) {
+      case 'level_1':
+        return 'text-green-600 border-green-200 bg-green-50';
+      case 'level_2':
+        return 'text-orange-600 border-orange-200 bg-orange-50';
+      case 'level_3':
+        return 'text-red-600 border-red-200 bg-red-50';
+      default:
+        return 'text-blue-600 border-blue-200 bg-blue-50';
+    }
   };
 
   return (
@@ -153,83 +178,69 @@ const ResumeUploader = () => {
 
         {result && (
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">Resume Analysis</h2>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-3">Skills Detected</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {result.skills_detected.map((skill, index) => (
-                      <span
-                        key={index}
-                        className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Resume Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Skills Detected</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.skills_detected.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Experience</h3>
+                    <div className="text-3xl font-bold text-blue-600">
+                      {result.experience_years} years
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-3">Experience</h3>
-                  <div className="text-3xl font-bold text-blue-600">
-                    {result.experience_years} years
-                  </div>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Generated Interview Questions</h2>
-              <div className="prose max-w-none">
-                <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                  {result.questions_generated.split('\n').map((line, index) => {
-                    if (line.includes('**Level')) {
-                      return (
-                        <h3 key={index} className="text-xl font-bold text-blue-600 mt-6 mb-3">
-                          {line.replace(/\*\*/g, '')}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Generated Interview Questions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="level_1" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="level_1" className="text-green-700">Beginner</TabsTrigger>
+                    <TabsTrigger value="level_2" className="text-orange-700">Intermediate</TabsTrigger>
+                    <TabsTrigger value="level_3" className="text-red-700">Advanced</TabsTrigger>
+                  </TabsList>
+                  
+                  {Object.entries(result.questions).map(([level, questions]) => (
+                    <TabsContent key={level} value={level} className="mt-6">
+                      <div className={`p-6 rounded-lg border-2 ${getLevelColor(level)}`}>
+                        <h3 className="text-xl font-bold mb-4">
+                          {getLevelTitle(level)}
                         </h3>
-                      );
-                    }
-                    if (line.includes('* **Goal:**')) {
-                      return (
-                        <p key={index} className="font-semibold text-green-600 mb-2">
-                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
-                        </p>
-                      );
-                    }
-                    if (line.includes('* **Time Allotted:**')) {
-                      return (
-                        <p key={index} className="font-semibold text-orange-600 mb-2">
-                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
-                        </p>
-                      );
-                    }
-                    if (line.includes('* **Questions:**')) {
-                      return (
-                        <p key={index} className="font-semibold text-purple-600 mb-3">
-                          {line.replace(/\* \*\*/g, '').replace(/\*\*/g, '')}
-                        </p>
-                      );
-                    }
-                    if (line.trim().match(/^\d+\./)) {
-                      return (
-                        <div key={index} className="bg-gray-50 p-4 rounded-lg mb-3 border-l-4 border-blue-400">
-                          <p className="font-medium">{line.trim()}</p>
+                        <div className="space-y-3">
+                          {formatQuestions(questions).map((question, index) => (
+                            <div
+                              key={index}
+                              className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-current"
+                            >
+                              <p className="text-gray-800 font-medium">{question}</p>
+                            </div>
+                          ))}
                         </div>
-                      );
-                    }
-                    if (line.trim() && !line.includes('*')) {
-                      return (
-                        <p key={index} className="mb-2 text-gray-600">
-                          {line}
-                        </p>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-              </div>
-            </div>
+                      </div>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
 
             <div className="text-center">
               <button

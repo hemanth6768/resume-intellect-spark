@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Upload, Loader, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -7,9 +8,9 @@ interface ApiResponse {
   skills_detected: string[];
   experience_years: number;
   questions: {
-    level_1: string;
-    level_2: string;
-    level_3: string;
+    level_1: string[];
+    level_2: string[];
+    level_3: string[];
   };
 }
 
@@ -69,14 +70,8 @@ const ResumeUploader = () => {
     setError(null);
   };
 
-  const formatQuestions = (questionText: string) => {
-    return questionText.split('\n').filter(line => line.trim()).map((question, index) => {
-      const trimmedQuestion = question.trim();
-      if (trimmedQuestion.match(/^\d+\./)) {
-        return trimmedQuestion;
-      }
-      return trimmedQuestion;
-    });
+  const formatQuestions = (questionsArray: string[]) => {
+    return questionsArray.filter(question => question.trim() && !question.includes('minutes)'));
   };
 
   const getLevelTitle = (level: string) => {

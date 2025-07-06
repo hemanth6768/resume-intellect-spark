@@ -56,6 +56,8 @@ const ResumeUploader = () => {
       }
 
       const data: ApiResponse = await response.json();
+      console.log('API Response:', data);
+      console.log('Questions structure:', data.questions);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
@@ -71,7 +73,26 @@ const ResumeUploader = () => {
   };
 
   const formatQuestions = (questionsArray: string[]) => {
-    return questionsArray.filter(question => question.trim() && !question.includes('minutes)'));
+    console.log('Raw questions array:', questionsArray);
+    console.log('Array type:', typeof questionsArray);
+    console.log('Is array:', Array.isArray(questionsArray));
+    
+    if (!Array.isArray(questionsArray)) {
+      console.log('Questions is not an array, returning empty array');
+      return [];
+    }
+    
+    const filtered = questionsArray.filter(question => {
+      const isValid = question && 
+                     typeof question === 'string' && 
+                     question.trim() && 
+                     !question.toLowerCase().includes('minutes)');
+      console.log(`Question: "${question}" - Valid: ${isValid}`);
+      return isValid;
+    });
+    
+    console.log('Filtered questions:', filtered);
+    return filtered;
   };
 
   const getLevelTitle = (level: string) => {
@@ -220,34 +241,43 @@ const ResumeUploader = () => {
                     </TabsTrigger>
                   </TabsList>
                   
-                  {Object.entries(result.questions).map(([level, questions]) => (
-                    <TabsContent key={level} value={level} className="mt-4 sm:mt-6">
-                      <div className={`p-3 sm:p-6 rounded-lg border-2 ${getLevelColor(level)}`}>
-                        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
-                          {getLevelTitle(level)}
-                        </h3>
-                        <div className="space-y-2 sm:space-y-3">
-                          {formatQuestions(questions).map((question, index) => (
-                            <div
-                              key={index}
-                              className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current"
-                            >
-                              <p className="text-gray-800 font-medium text-sm sm:text-base leading-relaxed">
-                                {question}
-                              </p>
-                            </div>
-                          ))}
-                          {formatQuestions(questions).length === 0 && (
-                            <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current">
-                              <p className="text-gray-500 text-sm sm:text-base">
-                                No questions available for this level.
-                              </p>
-                            </div>
-                          )}
+                  {Object.entries(result.questions).map(([level, questions]) => {
+                    const formattedQuestions = formatQuestions(questions);
+                    console.log(`Level ${level} formatted questions:`, formattedQuestions);
+                    
+                    return (
+                      <TabsContent key={level} value={level} className="mt-4 sm:mt-6">
+                        <div className={`p-3 sm:p-6 rounded-lg border-2 ${getLevelColor(level)}`}>
+                          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
+                            {getLevelTitle(level)}
+                          </h3>
+                          <div className="space-y-2 sm:space-y-3">
+                            {formattedQuestions.length > 0 ? (
+                              formattedQuestions.map((question, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current"
+                                >
+                                  <p className="text-gray-800 font-medium text-sm sm:text-base leading-relaxed">
+                                    {question}
+                                  </p>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current">
+                                <p className="text-gray-500 text-sm sm:text-base">
+                                  No questions available for this level.
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Debug: Raw data type: {typeof questions}, Length: {questions?.length || 'N/A'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </TabsContent>
-                  ))}
+                      </TabsContent>
+                    );
+                  })}
                 </Tabs>
               </CardContent>
             </Card>

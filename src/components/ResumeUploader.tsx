@@ -101,25 +101,25 @@ const ResumeUploader = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-2 sm:py-8 sm:px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 mb-2">
             AI Resume Interview Question Generator
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-base sm:text-lg text-gray-600 px-2">
             Upload your resume and get tailored interview questions based on your skills and experience
           </p>
         </div>
 
         {!result && (
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8 mb-6">
             <div className="text-center">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-blue-400 transition-colors">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-8 hover:border-blue-400 transition-colors">
+                <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
                 <div className="mb-4">
                   <label htmlFor="resume-upload" className="cursor-pointer">
-                    <span className="text-lg font-medium text-gray-700">
+                    <span className="text-base sm:text-lg font-medium text-gray-700">
                       Choose your resume file
                     </span>
                     <input
@@ -136,14 +136,14 @@ const ResumeUploader = () => {
                 {file && (
                   <div className="flex items-center justify-center mb-4 text-green-600">
                     <CheckCircle className="w-5 h-5 mr-2" />
-                    <span className="font-medium">{file.name}</span>
+                    <span className="font-medium text-sm sm:text-base break-all">{file.name}</span>
                   </div>
                 )}
 
                 <button
                   onClick={handleUpload}
                   disabled={!file || loading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center mx-auto"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 sm:px-6 rounded-lg transition-colors flex items-center mx-auto text-sm sm:text-base"
                 >
                   {loading ? (
                     <>
@@ -165,27 +165,27 @@ const ResumeUploader = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-              <span className="text-red-700 font-medium">{error}</span>
+              <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+              <span className="text-red-700 font-medium text-sm sm:text-base">{error}</span>
             </div>
           </div>
         )}
 
         {result && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Resume Analysis</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl">Resume Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Skills Detected</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-3">Skills Detected</h3>
                     <div className="flex flex-wrap gap-2">
                       {result.skills_detected.map((skill, index) => (
                         <span
                           key={index}
-                          className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
+                          className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium"
                         >
                           {skill}
                         </span>
@@ -193,8 +193,8 @@ const ResumeUploader = () => {
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Experience</h3>
-                    <div className="text-3xl font-bold text-blue-600">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-3">Experience</h3>
+                    <div className="text-2xl sm:text-3xl font-bold text-blue-600">
                       {result.experience_years} years
                     </div>
                   </div>
@@ -204,31 +204,46 @@ const ResumeUploader = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Generated Interview Questions</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl">Generated Interview Questions</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 <Tabs defaultValue="level_1" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="level_1" className="text-green-700">Beginner</TabsTrigger>
-                    <TabsTrigger value="level_2" className="text-orange-700">Intermediate</TabsTrigger>
-                    <TabsTrigger value="level_3" className="text-red-700">Advanced</TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6">
+                    <TabsTrigger value="level_1" className="text-green-700 text-xs sm:text-sm px-1 sm:px-3">
+                      Beginner
+                    </TabsTrigger>
+                    <TabsTrigger value="level_2" className="text-orange-700 text-xs sm:text-sm px-1 sm:px-3">
+                      Intermediate
+                    </TabsTrigger>
+                    <TabsTrigger value="level_3" className="text-red-700 text-xs sm:text-sm px-1 sm:px-3">
+                      Advanced
+                    </TabsTrigger>
                   </TabsList>
                   
                   {Object.entries(result.questions).map(([level, questions]) => (
-                    <TabsContent key={level} value={level} className="mt-6">
-                      <div className={`p-6 rounded-lg border-2 ${getLevelColor(level)}`}>
-                        <h3 className="text-xl font-bold mb-4">
+                    <TabsContent key={level} value={level} className="mt-4 sm:mt-6">
+                      <div className={`p-3 sm:p-6 rounded-lg border-2 ${getLevelColor(level)}`}>
+                        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">
                           {getLevelTitle(level)}
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           {formatQuestions(questions).map((question, index) => (
                             <div
                               key={index}
-                              className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-current"
+                              className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current"
                             >
-                              <p className="text-gray-800 font-medium">{question}</p>
+                              <p className="text-gray-800 font-medium text-sm sm:text-base leading-relaxed">
+                                {question}
+                              </p>
                             </div>
                           ))}
+                          {formatQuestions(questions).length === 0 && (
+                            <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-current">
+                              <p className="text-gray-500 text-sm sm:text-base">
+                                No questions available for this level.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
@@ -240,7 +255,7 @@ const ResumeUploader = () => {
             <div className="text-center">
               <button
                 onClick={resetUpload}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 sm:px-6 rounded-lg transition-colors text-sm sm:text-base"
               >
                 Upload Another Resume
               </button>

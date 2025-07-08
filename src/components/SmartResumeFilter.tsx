@@ -16,11 +16,13 @@ interface JobRequirements {
 interface ResumeAnalysis {
   id: string;
   fileName: string;
-  matchPercentage: number;
-  matchedSkills: string[];
-  experienceYears: number;
-  suitable: boolean;
-  reasoning: string;
+  experience_years: number;
+  matched_skills: string[];
+  mentioned_tech_stack: string[];
+  missing_skills: string[];
+  reason: string;
+  shortlisted: boolean;
+  worked_on: string[];
 }
 
 const SmartResumeFilter = () => {
@@ -124,35 +126,65 @@ const SmartResumeFilter = () => {
   };
 
   const analyzeResumes = async () => {
-    if (resumes.length === 0) return;
+    if (resumes.length === 0 || !jobRequirements.jobTitle.trim()) {
+      alert('Please upload resumes and provide a job title');
+      return;
+    }
     
     setLoading(true);
+    const newAnalyses: ResumeAnalysis[] = [];
     
-    // Mock analysis - replace with actual API call
-    const mockAnalyses: ResumeAnalysis[] = resumes.map((file, index) => {
-      const matchedSkills = jobRequirements.requiredSkills.slice(0, Math.floor(Math.random() * jobRequirements.requiredSkills.length) + 1);
-      const matchPercentage = Math.floor((matchedSkills.length / jobRequirements.requiredSkills.length) * 100);
-      const experienceYears = Math.floor(Math.random() * 10) + 1;
-      const suitable = matchPercentage >= 60 && experienceYears >= jobRequirements.minExperience;
+    try {
+      for (let i = 0; i < resumes.length; i++) {
+        const file = resumes[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('job_title', jobRequirements.jobTitle);
+
+        console.log(`Analyzing resume: ${file.name}`);
+        
+        const response = await fetch('http://localhost:5000/shortlist-resume', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Analysis result:', result);
+          
+          const analysis: ResumeAnalysis = {
+            id: `resume-${i}`,
+            fileName: file.name,
+            experience_years: result.experience_years,
+            matched_skills: result.matched_skills,
+            mentioned_tech_stack: result.mentioned_tech_stack,
+            missing_skills: result.missing_skills,
+            reason: result.reason,
+            shortlisted: result.shortlisted,
+            worked_on: result.worked_on
+          };
+          
+          newAnalyses.push(analysis);
+        } else {
+          console.error(`Failed to analyze ${file.name}:`, response.statusText);
+          alert(`Failed to analyze ${file.name}. Please try again.`);
+        }
+      }
       
-      return {
-        id: `resume-${index}`,
-        fileName: file.name,
-        matchPercentage,
-        matchedSkills,
-        experienceYears,
-        suitable,
-        reasoning: suitable 
-          ? `Strong match with ${matchedSkills.length} required skills and ${experienceYears} years experience`
-          : `Limited match - only ${matchedSkills.length} skills matched, needs ${jobRequirements.minExperience - experienceYears > 0 ? `${jobRequirements.minExperience - experienceYears} more years` : 'more relevant skills'}`
-      };
-    });
-    
-    setAnalyses(mockAnalyses);
-    setLoading(false);
+      setAnalyses(newAnalyses);
+    } catch (error) {
+      console.error('Error analyzing resumes:', error);
+      alert('Error analyzing resumes. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const sortedAnalyses = [...analyses].sort((a, b) => b.matchPercentage - a.matchPercentage);
+  const sortedAnalyses = [...analyses].sort((a, b) => {
+    if (a.shortlisted && !b.shortlisted) return -1;
+    if (!a.shortlisted && b.shortlisted) return 1;
+    return b.experience_years - a.experience_years;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
@@ -193,16 +225,13 @@ const SmartResumeFilter = () => {
               {/* Required Skills */}
               <div>
                 <Label className="text-sm font-medium">Required Skills</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add a skill..."
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addSkill()}
-                    className="flex-1"
-                  />
-                  <Button onClick={addSkill} size="sm">Add</Button>
-                </div>
+                <Input
+                  placeholder="Press Enter to add a skill..."
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addSkill()}
+                  className="mt-2"
+                />
                 <div className="flex flex-wrap gap-2 mt-3">
                   {jobRequirements.requiredSkills.map((skill) => (
                     <span
@@ -237,16 +266,13 @@ const SmartResumeFilter = () => {
               {/* Tech Stack */}
               <div>
                 <Label className="text-sm font-medium">Tech Stack (Optional)</Label>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Add technology..."
-                    value={techInput}
-                    onChange={(e) => setTechInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addTechStack()}
-                    className="flex-1"
-                  />
-                  <Button onClick={addTechStack} size="sm">Add</Button>
-                </div>
+                <Input
+                  placeholder="Press Enter to add technology..."
+                  value={techInput}
+                  onChange={(e) => setTechInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addTechStack()}
+                  className="mt-2"
+                />
                 <div className="flex flex-wrap gap-2 mt-3">
                   {jobRequirements.techStack.map((tech) => (
                     <span
@@ -316,7 +342,7 @@ const SmartResumeFilter = () => {
                   ))}
                   <Button
                     onClick={analyzeResumes}
-                    disabled={loading || jobRequirements.requiredSkills.length === 0}
+                    disabled={loading || !jobRequirements.jobTitle.trim()}
                     className="w-full mt-4"
                   >
                     {loading ? 'Analyzing...' : 'Analyze Resumes'}
@@ -364,29 +390,29 @@ const SmartResumeFilter = () => {
                     >
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium truncate">{analysis.fileName}</h3>
-                        <span className={`p-1 rounded ${analysis.suitable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {analysis.suitable ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                        <span className={`p-1 rounded ${analysis.shortlisted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                         </span>
                       </div>
                       
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Match:</span>
-                          <span className={`font-bold ${analysis.matchPercentage >= 70 ? 'text-green-600' : analysis.matchPercentage >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                            {analysis.matchPercentage}%
+                          <span className="text-sm text-gray-600">Status:</span>
+                          <span className={`font-bold ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
+                            {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
                           </span>
                         </div>
                         
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Experience:</span>
-                          <span className="font-medium">{analysis.experienceYears} years</span>
+                          <span className="font-medium">{analysis.experience_years} years</span>
                         </div>
                       </div>
 
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Matched Skills:</p>
                         <div className="flex flex-wrap gap-1">
-                          {analysis.matchedSkills.map((skill) => (
+                          {analysis.matched_skills.map((skill) => (
                             <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                               {skill}
                             </span>
@@ -394,9 +420,36 @@ const SmartResumeFilter = () => {
                         </div>
                       </div>
 
+                      {analysis.missing_skills.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Missing Skills:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {analysis.missing_skills.map((skill) => (
+                              <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Tech Stack:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {analysis.mentioned_tech_stack.slice(0, 3).map((tech) => (
+                            <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                              {tech}
+                            </span>
+                          ))}
+                          {analysis.mentioned_tech_stack.length > 3 && (
+                            <span className="text-xs text-gray-500">+{analysis.mentioned_tech_stack.length - 3} more</span>
+                          )}
+                        </div>
+                      </div>
+
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
-                        <p className="text-sm text-gray-800">{analysis.reasoning}</p>
+                        <p className="text-sm text-gray-800">{analysis.reason}</p>
                       </div>
                     </div>
                   ))}
@@ -407,10 +460,10 @@ const SmartResumeFilter = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-2">Candidate</th>
-                        <th className="text-left p-2">Match %</th>
-                        <th className="text-left p-2">Experience</th>
                         <th className="text-left p-2">Status</th>
-                        <th className="text-left p-2">Skills</th>
+                        <th className="text-left p-2">Experience</th>
+                        <th className="text-left p-2">Matched Skills</th>
+                        <th className="text-left p-2">Missing Skills</th>
                         <th className="text-left p-2">Reasoning</th>
                       </tr>
                     </thead>
@@ -419,26 +472,31 @@ const SmartResumeFilter = () => {
                         <tr key={analysis.id} className="border-b hover:bg-gray-50">
                           <td className="p-2 font-medium">{analysis.fileName}</td>
                           <td className="p-2">
-                            <span className={`font-bold ${analysis.matchPercentage >= 70 ? 'text-green-600' : analysis.matchPercentage >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                              {analysis.matchPercentage}%
+                            <span className={`flex items-center gap-1 ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
+                              {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                              {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
                             </span>
                           </td>
-                          <td className="p-2">{analysis.experienceYears} years</td>
-                          <td className="p-2">
-                            <span className={`p-1 rounded ${analysis.suitable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {analysis.suitable ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                            </span>
-                          </td>
+                          <td className="p-2">{analysis.experience_years} years</td>
                           <td className="p-2">
                             <div className="flex flex-wrap gap-1">
-                              {analysis.matchedSkills.map((skill) => (
+                              {analysis.matched_skills.map((skill) => (
                                 <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                                   {skill}
                                 </span>
                               ))}
                             </div>
                           </td>
-                          <td className="p-2 text-sm">{analysis.reasoning}</td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-1">
+                              {analysis.missing_skills.map((skill) => (
+                                <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="p-2 text-sm max-w-xs">{analysis.reason}</td>
                         </tr>
                       ))}
                     </tbody>

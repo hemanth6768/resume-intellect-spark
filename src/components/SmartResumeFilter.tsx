@@ -126,8 +126,13 @@ const SmartResumeFilter = () => {
   };
 
   const analyzeResumes = async () => {
-    if (resumes.length === 0 || !jobRequirements.jobTitle.trim()) {
-      alert('Please upload resumes and provide a job title');
+    if (resumes.length === 0) {
+      alert('Please upload at least one resume');
+      return;
+    }
+    
+    if (!jobRequirements.jobTitle.trim()) {
+      alert('Please enter a job title in the Job Requirements section');
       return;
     }
     
@@ -141,7 +146,7 @@ const SmartResumeFilter = () => {
         formData.append('file', file);
         formData.append('job_title', jobRequirements.jobTitle);
 
-        console.log(`Analyzing resume: ${file.name}`);
+        console.log(`Analyzing resume: ${file.name} for job: ${jobRequirements.jobTitle}`);
         
         const response = await fetch('http://localhost:5000/shortlist-resume', {
           method: 'POST',
@@ -155,13 +160,13 @@ const SmartResumeFilter = () => {
           const analysis: ResumeAnalysis = {
             id: `resume-${i}`,
             fileName: file.name,
-            experience_years: result.experience_years,
-            matched_skills: result.matched_skills,
-            mentioned_tech_stack: result.mentioned_tech_stack,
-            missing_skills: result.missing_skills,
-            reason: result.reason,
-            shortlisted: result.shortlisted,
-            worked_on: result.worked_on
+            experience_years: result.experience_years || 0,
+            matched_skills: result.matched_skills || [],
+            mentioned_tech_stack: result.mentioned_tech_stack || [],
+            missing_skills: result.missing_skills || [],
+            reason: result.reason || 'No reason provided',
+            shortlisted: result.shortlisted || false,
+            worked_on: result.worked_on || []
           };
           
           newAnalyses.push(analysis);
@@ -172,9 +177,10 @@ const SmartResumeFilter = () => {
       }
       
       setAnalyses(newAnalyses);
+      console.log('All analyses completed:', newAnalyses);
     } catch (error) {
       console.error('Error analyzing resumes:', error);
-      alert('Error analyzing resumes. Please check your connection.');
+      alert('Error analyzing resumes. Please check your connection and API server.');
     } finally {
       setLoading(false);
     }
@@ -185,6 +191,9 @@ const SmartResumeFilter = () => {
     if (!a.shortlisted && b.shortlisted) return 1;
     return b.experience_years - a.experience_years;
   });
+
+  // Check if analyze button should be enabled
+  const canAnalyze = resumes.length > 0 && jobRequirements.jobTitle.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
@@ -210,7 +219,7 @@ const SmartResumeFilter = () => {
             <CardContent className="space-y-6">
               {/* Job Title */}
               <div>
-                <Label className="text-sm font-medium">Job Title</Label>
+                <Label className="text-sm font-medium">Job Title *</Label>
                 <Input
                   placeholder="e.g., Backend Developer"
                   value={jobRequirements.jobTitle}
@@ -220,6 +229,7 @@ const SmartResumeFilter = () => {
                   }))}
                   className="mt-2"
                 />
+                <p className="text-xs text-gray-500 mt-1">Required for resume analysis</p>
               </div>
 
               {/* Required Skills */}
@@ -342,11 +352,16 @@ const SmartResumeFilter = () => {
                   ))}
                   <Button
                     onClick={analyzeResumes}
-                    disabled={loading || !jobRequirements.jobTitle.trim()}
+                    disabled={loading || !canAnalyze}
                     className="w-full mt-4"
                   >
                     {loading ? 'Analyzing...' : 'Analyze Resumes'}
                   </Button>
+                  {!canAnalyze && resumes.length > 0 && (
+                    <p className="text-xs text-red-500 text-center mt-2">
+                      Please enter a job title in the Job Requirements section to enable analysis
+                    </p>
+                  )}
                 </div>
               )}
             </CardContent>

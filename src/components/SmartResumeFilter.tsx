@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -33,6 +32,7 @@ const SmartResumeFilter = () => {
     techStack: []
   });
   
+  const [uploadJobTitle, setUploadJobTitle] = useState('');
   const [skillInput, setSkillInput] = useState('');
   const [techInput, setTechInput] = useState('');
   const [resumes, setResumes] = useState<File[]>([]);
@@ -131,8 +131,9 @@ const SmartResumeFilter = () => {
       return;
     }
     
-    if (!jobRequirements.jobTitle.trim()) {
-      alert('Please enter a job title in the Job Requirements section');
+    const jobTitleToUse = uploadJobTitle.trim() || jobRequirements.jobTitle.trim();
+    if (!jobTitleToUse) {
+      alert('Please enter a job title');
       return;
     }
     
@@ -144,9 +145,9 @@ const SmartResumeFilter = () => {
         const file = resumes[i];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('job_title', jobRequirements.jobTitle);
+        formData.append('job_title', jobTitleToUse);
 
-        console.log(`Analyzing resume: ${file.name} for job: ${jobRequirements.jobTitle}`);
+        console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
         
         const response = await fetch('http://localhost:5000/shortlist-resume', {
           method: 'POST',
@@ -192,8 +193,7 @@ const SmartResumeFilter = () => {
     return b.experience_years - a.experience_years;
   });
 
-  // Check if analyze button should be enabled
-  const canAnalyze = resumes.length > 0 && jobRequirements.jobTitle.trim().length > 0;
+  const canAnalyze = resumes.length > 0 && (uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
@@ -203,20 +203,46 @@ const SmartResumeFilter = () => {
             🎯 Smart Resume Filter
           </h1>
           <p className="text-base sm:text-lg text-gray-600 px-2">
-            Match the Right Talent Instantly - Define requirements and compare multiple resumes
+            Streamline your hiring process - Define requirements, analyze resumes, and generate interview questions
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Job Requirements Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+        {/* Workflow Steps */}
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center space-x-4 bg-white rounded-lg p-4 shadow-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
+              <span className="text-sm font-medium text-gray-700">Job Requirements</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
+              <span className="text-sm font-medium text-gray-700">Resume Analysis</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</div>
+              <span className="text-sm font-medium text-gray-700">Question Generation</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 1: Job Requirements */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
+            <h2 className="text-xl font-bold text-gray-800">Define Job Requirements</h2>
+            <p className="text-sm text-gray-600">Set the criteria for your ideal candidate</p>
+          </div>
+          
+          <Card className="border-blue-200 shadow-md">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="flex items-center gap-2 text-blue-800">
                 <Search className="w-5 h-5" />
                 Job Requirements
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 mt-6">
               {/* Job Title */}
               <div>
                 <Label className="text-sm font-medium">Job Title *</Label>
@@ -229,7 +255,7 @@ const SmartResumeFilter = () => {
                   }))}
                   className="mt-2"
                 />
-                <p className="text-xs text-gray-500 mt-1">Required for resume analysis</p>
+                <p className="text-xs text-gray-500 mt-1">This will be used as the default for resume analysis</p>
               </div>
 
               {/* Required Skills */}
@@ -303,25 +329,50 @@ const SmartResumeFilter = () => {
               <Button
                 onClick={submitJobRequirements}
                 disabled={submitLoading || !jobRequirements.jobTitle.trim() || jobRequirements.requiredSkills.length === 0}
-                className="w-full flex items-center gap-2"
+                className="w-full flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
               >
                 <Send className="w-4 h-4" />
                 {submitLoading ? 'Submitting...' : 'Submit Job Requirements'}
               </Button>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Resume Upload Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Resume Upload Panel
+        {/* Step 2: Resume Analysis */}
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
+            <h2 className="text-xl font-bold text-gray-800">Analyze Resumes</h2>
+            <p className="text-sm text-gray-600">Upload and evaluate candidate resumes</p>
+          </div>
+
+          <Card className="border-purple-200 shadow-md">
+            <CardHeader className="bg-purple-50">
+              <CardTitle className="flex items-center gap-2 text-purple-800">
+                <FileText className="w-5 h-5" />
+                Resume Upload & Analysis
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <CardContent className="space-y-6 mt-6">
+              {/* Job Title for Analysis */}
+              <div>
+                <Label className="text-sm font-medium">Job Title for Analysis</Label>
+                <Input
+                  placeholder="Enter job title or leave empty to use requirement above"
+                  value={uploadJobTitle}
+                  onChange={(e) => setUploadJobTitle(e.target.value)}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {jobRequirements.jobTitle.trim() 
+                    ? `Will use "${jobRequirements.jobTitle}" if left empty` 
+                    : 'Required for resume analysis'}
+                </p>
+              </div>
+
+              {/* File Upload */}
+              <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
+                <Upload className="w-12 h-12 text-purple-400 mx-auto mb-4" />
                 <label htmlFor="resume-files" className="cursor-pointer">
                   <span className="text-lg font-medium text-gray-700">
                     Upload Multiple Resumes
@@ -335,32 +386,41 @@ const SmartResumeFilter = () => {
                     className="hidden"
                   />
                 </label>
-                <p className="text-sm text-gray-500 mt-2">PDF files only</p>
+                <p className="text-sm text-gray-500 mt-2">PDF files only, multiple selection supported</p>
               </div>
 
               {resumes.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="font-medium text-sm">{resumes.length} resume(s) uploaded:</p>
-                  {resumes.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                      <span className="text-sm truncate">{file.name}</span>
-                      <X
-                        className="w-4 h-4 cursor-pointer text-gray-500 hover:text-red-500"
-                        onClick={() => removeResume(index)}
-                      />
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  <p className="font-medium text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    {resumes.length} resume(s) uploaded:
+                  </p>
+                  <div className="grid gap-2">
+                    {resumes.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-purple-50 p-3 rounded-lg border border-purple-200">
+                        <span className="text-sm truncate font-medium">{file.name}</span>
+                        <X
+                          className="w-4 h-4 cursor-pointer text-gray-500 hover:text-red-500"
+                          onClick={() => removeResume(index)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  
                   <Button
                     onClick={analyzeResumes}
                     disabled={loading || !canAnalyze}
-                    className="w-full mt-4"
+                    className="w-full bg-purple-600 hover:bg-purple-700"
                   >
-                    {loading ? 'Analyzing...' : 'Analyze Resumes'}
+                    {loading ? 'Analyzing Resumes...' : 'Analyze Resumes'}
                   </Button>
+                  
                   {!canAnalyze && resumes.length > 0 && (
-                    <p className="text-xs text-red-500 text-center mt-2">
-                      Please enter a job title in the Job Requirements section to enable analysis
-                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600 text-center">
+                        Please enter a job title above or in the Job Requirements section
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -368,141 +428,83 @@ const SmartResumeFilter = () => {
           </Card>
         </div>
 
-        {/* Results Section */}
+        {/* Step 3: Results & Question Generation */}
         {analyses.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Candidate Analysis Results
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    variant={viewMode === 'cards' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('cards')}
-                  >
-                    Cards
-                  </Button>
-                  <Button
-                    variant={viewMode === 'table' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setViewMode('table')}
-                  >
-                    Table
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {viewMode === 'cards' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {sortedAnalyses.map((analysis) => (
-                    <div
-                      key={analysis.id}
-                      className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</div>
+              <h2 className="text-xl font-bold text-gray-800">Analysis Results & Question Generation</h2>
+              <p className="text-sm text-gray-600">Review candidates and generate interview questions</p>
+            </div>
+
+            <Card className="border-green-200 shadow-md">
+              <CardHeader className="bg-green-50">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-green-800">
+                    <Users className="w-5 h-5" />
+                    Candidate Analysis Results
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={viewMode === 'cards' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('cards')}
                     >
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium truncate">{analysis.fileName}</h3>
-                        <span className={`p-1 rounded ${analysis.shortlisted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Status:</span>
-                          <span className={`font-bold ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
-                            {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
+                      Cards
+                    </Button>
+                    <Button
+                      variant={viewMode === 'table' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('table')}
+                    >
+                      Table
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="mt-6">
+                {viewMode === 'cards' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sortedAnalyses.map((analysis) => (
+                      <div
+                        key={analysis.id}
+                        className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium truncate">{analysis.fileName}</h3>
+                          <span className={`p-1 rounded ${analysis.shortlisted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                           </span>
                         </div>
                         
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Experience:</span>
-                          <span className="font-medium">{analysis.experience_years} years</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Matched Skills:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {analysis.matched_skills.map((skill) => (
-                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                              {skill}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Status:</span>
+                            <span className={`font-bold ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
+                              {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
                             </span>
-                          ))}
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Experience:</span>
+                            <span className="font-medium">{analysis.experience_years} years</span>
+                          </div>
                         </div>
-                      </div>
 
-                      {analysis.missing_skills.length > 0 && (
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Missing Skills:</p>
+                          <p className="text-sm text-gray-600 mb-1">Matched Skills:</p>
                           <div className="flex flex-wrap gap-1">
-                            {analysis.missing_skills.map((skill) => (
-                              <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                            {analysis.matched_skills.map((skill) => (
+                              <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                                 {skill}
                               </span>
                             ))}
                           </div>
                         </div>
-                      )}
 
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Tech Stack:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {analysis.mentioned_tech_stack.slice(0, 3).map((tech) => (
-                            <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                              {tech}
-                            </span>
-                          ))}
-                          {analysis.mentioned_tech_stack.length > 3 && (
-                            <span className="text-xs text-gray-500">+{analysis.mentioned_tech_stack.length - 3} more</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
-                        <p className="text-sm text-gray-800">{analysis.reason}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Candidate</th>
-                        <th className="text-left p-2">Status</th>
-                        <th className="text-left p-2">Experience</th>
-                        <th className="text-left p-2">Matched Skills</th>
-                        <th className="text-left p-2">Missing Skills</th>
-                        <th className="text-left p-2">Reasoning</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedAnalyses.map((analysis) => (
-                        <tr key={analysis.id} className="border-b hover:bg-gray-50">
-                          <td className="p-2 font-medium">{analysis.fileName}</td>
-                          <td className="p-2">
-                            <span className={`flex items-center gap-1 ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
-                              {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                              {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
-                            </span>
-                          </td>
-                          <td className="p-2">{analysis.experience_years} years</td>
-                          <td className="p-2">
-                            <div className="flex flex-wrap gap-1">
-                              {analysis.matched_skills.map((skill) => (
-                                <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="p-2">
+                        {analysis.missing_skills.length > 0 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Missing Skills:</p>
                             <div className="flex flex-wrap gap-1">
                               {analysis.missing_skills.map((skill) => (
                                 <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
@@ -510,16 +512,99 @@ const SmartResumeFilter = () => {
                                 </span>
                               ))}
                             </div>
-                          </td>
-                          <td className="p-2 text-sm max-w-xs">{analysis.reason}</td>
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Tech Stack:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {analysis.mentioned_tech_stack.slice(0, 3).map((tech) => (
+                              <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                {tech}
+                              </span>
+                            ))}
+                            {analysis.mentioned_tech_stack.length > 3 && (
+                              <span className="text-xs text-gray-500">+{analysis.mentioned_tech_stack.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
+                          <p className="text-sm text-gray-800">{analysis.reason}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-2">Candidate</th>
+                          <th className="text-left p-2">Status</th>
+                          <th className="text-left p-2">Experience</th>
+                          <th className="text-left p-2">Matched Skills</th>
+                          <th className="text-left p-2">Missing Skills</th>
+                          <th className="text-left p-2">Reasoning</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {sortedAnalyses.map((analysis) => (
+                          <tr key={analysis.id} className="border-b hover:bg-gray-50">
+                            <td className="p-2 font-medium">{analysis.fileName}</td>
+                            <td className="p-2">
+                              <span className={`flex items-center gap-1 ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
+                                {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                                {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
+                              </span>
+                            </td>
+                            <td className="p-2">{analysis.experience_years} years</td>
+                            <td className="p-2">
+                              <div className="flex flex-wrap gap-1">
+                                {analysis.matched_skills.map((skill) => (
+                                  <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex flex-wrap gap-1">
+                                {analysis.missing_skills.map((skill) => (
+                                  <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-2 text-sm max-w-xs">{analysis.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Question Generation Button */}
+                <div className="mt-6 pt-6 border-t border-green-200">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                      <MessageSquare className="w-5 h-5" />
+                      Ready for Interview Questions?
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Generate tailored interview questions for shortlisted candidates
+                    </p>
+                    <Button className="bg-green-600 hover:bg-green-700 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      Generate Interview Questions
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

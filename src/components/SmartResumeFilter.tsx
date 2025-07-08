@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { Upload, X, Check, AlertCircle, Search, Filter, Users } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
 interface JobRequirements {
+  jobTitle: string;
   requiredSkills: string[];
   minExperience: number;
   techStack: string[];
@@ -24,6 +25,7 @@ interface ResumeAnalysis {
 
 const SmartResumeFilter = () => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirements>({
+    jobTitle: '',
     requiredSkills: [],
     minExperience: 0,
     techStack: []
@@ -33,6 +35,7 @@ const SmartResumeFilter = () => {
   const [techInput, setTechInput] = useState('');
   const [resumes, setResumes] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
@@ -68,6 +71,46 @@ const SmartResumeFilter = () => {
       ...prev,
       techStack: prev.techStack.filter(t => t !== tech)
     }));
+  };
+
+  const submitJobRequirements = async () => {
+    if (!jobRequirements.jobTitle.trim() || jobRequirements.requiredSkills.length === 0) {
+      alert('Please provide job title and at least one required skill');
+      return;
+    }
+
+    setSubmitLoading(true);
+    
+    const payload = {
+      job_title: jobRequirements.jobTitle,
+      skills: jobRequirements.requiredSkills,
+      min_experience: jobRequirements.minExperience,
+      tech_stack: jobRequirements.techStack
+    };
+
+    try {
+      const response = await fetch('http://localhost:5000/add-requirement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Job requirements submitted successfully:', result);
+        alert('Job requirements submitted successfully!');
+      } else {
+        console.error('Failed to submit job requirements:', response.statusText);
+        alert('Failed to submit job requirements. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting job requirements:', error);
+      alert('Error submitting job requirements. Please check your connection.');
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,6 +176,20 @@ const SmartResumeFilter = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Job Title */}
+              <div>
+                <Label className="text-sm font-medium">Job Title</Label>
+                <Input
+                  placeholder="e.g., Backend Developer"
+                  value={jobRequirements.jobTitle}
+                  onChange={(e) => setJobRequirements(prev => ({
+                    ...prev,
+                    jobTitle: e.target.value
+                  }))}
+                  className="mt-2"
+                />
+              </div>
+
               {/* Required Skills */}
               <div>
                 <Label className="text-sm font-medium">Required Skills</Label>
@@ -205,6 +262,16 @@ const SmartResumeFilter = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Submit Button */}
+              <Button
+                onClick={submitJobRequirements}
+                disabled={submitLoading || !jobRequirements.jobTitle.trim() || jobRequirements.requiredSkills.length === 0}
+                className="w-full flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {submitLoading ? 'Submitting...' : 'Submit Job Requirements'}
+              </Button>
             </CardContent>
           </Card>
 

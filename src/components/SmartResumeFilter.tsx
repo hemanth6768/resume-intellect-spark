@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Calendar, UserCheck, Save } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -24,17 +24,6 @@ interface ResumeAnalysis {
   worked_on: string[];
 }
 
-interface Panelist {
-  id: number;
-  name: string;
-  email: string;
-  skills: string[];
-  available_days: string[];
-  start_time: string;
-  end_time: string;
-  created_at: string;
-}
-
 const SmartResumeFilter = () => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirements>({
     jobTitle: '',
@@ -51,7 +40,6 @@ const SmartResumeFilter = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
-  const [panelists, setPanelists] = useState<Panelist[]>([]);
   const [savingCandidates, setSavingCandidates] = useState<Record<string, boolean>>({});
 
   const addSkill = () => {
@@ -125,24 +113,6 @@ const SmartResumeFilter = () => {
       alert('Error submitting job requirements. Please check your connection.');
     } finally {
       setSubmitLoading(false);
-    }
-  };
-
-  const fetchPanelists = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/panelists');
-      if (response.ok) {
-        const data = await response.json();
-        setPanelists(data);
-        console.log('Available panelists:', data);
-        alert(`Found ${data.length} available panelists! Check console for details.`);
-      } else {
-        console.error('Failed to fetch panelists:', response.statusText);
-        alert('Failed to fetch panelists. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error fetching panelists:', error);
-      alert('Error fetching panelists. Please check your connection.');
     }
   };
 
@@ -508,14 +478,6 @@ const SmartResumeFilter = () => {
                     Candidate Analysis Results
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={fetchPanelists}
-                      className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                      size="sm"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Check Panelists
-                    </Button>
                     <Button
                       variant={viewMode === 'cards' ? 'default' : 'outline'}
                       size="sm"

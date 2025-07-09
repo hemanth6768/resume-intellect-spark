@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -35,12 +34,41 @@ interface ScheduledInterview {
   status: 'scheduled' | 'completed' | 'cancelled';
 }
 
+interface ShortlistedResume {
+  id: string;
+  resume_filename: string;
+  candidate_name: string;
+  experience: number;
+  matched_skills: string[];
+  missing_skills: string[];
+  tech_stack: string[];
+  reason: string;
+  shortlisted: boolean;
+  worked_on: string[];
+  timestamp: string;
+  assigned_panelist?: string;
+}
+
+interface Panelist {
+  id: number;
+  name: string;
+  email: string;
+  skills: string[];
+  available_days: string[];
+  start_time: string;
+  end_time: string;
+  created_at: string;
+}
+
 const InterviewScheduler = () => {
   const [panelists, setPanelists] = useState<PanelistAvailability[]>([]);
   const [scheduledInterviews, setScheduledInterviews] = useState<ScheduledInterview[]>([]);
   const [isAddingPanelist, setIsAddingPanelist] = useState(false);
+  const [availablePanelists, setAvailablePanelists] = useState<Panelist[]>([]);
+  const [shortlistedResumes, setShortlistedResumes] = useState<ShortlistedResume[]>([]);
+  const [loadingPanelists, setLoadingPanelists] = useState(false);
+  const [loadingResumes, setLoadingResumes] = useState(false);
   
-  // New panelist form state
   const [newPanelist, setNewPanelist] = useState({
     name: '',
     email: '',
@@ -127,6 +155,56 @@ const InterviewScheduler = () => {
     }));
   };
 
+  const fetchPanelists = async () => {
+    setLoadingPanelists(true);
+    try {
+      const response = await fetch('http://localhost:5000/panelists');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePanelists(data);
+        console.log('Available panelists:', data);
+        alert(`Found ${data.length} available panelists! Check console for details.`);
+      } else {
+        console.error('Failed to fetch panelists:', response.statusText);
+        alert('Failed to fetch panelists. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching panelists:', error);
+      alert('Error fetching panelists. Please check your connection.');
+    } finally {
+      setLoadingPanelists(false);
+    }
+  };
+
+  const fetchShortlistedResumes = async () => {
+    setLoadingResumes(true);
+    try {
+      const response = await fetch('http://localhost:5000/shortlist-resume/list');
+      if (response.ok) {
+        const data = await response.json();
+        setShortlistedResumes(data);
+        console.log('Shortlisted resumes:', data);
+        alert(`Found ${data.length} shortlisted resumes!`);
+      } else {
+        console.error('Failed to fetch shortlisted resumes:', response.statusText);
+        alert('Failed to fetch shortlisted resumes. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching shortlisted resumes:', error);
+      alert('Error fetching shortlisted resumes. Please check your connection.');
+    } finally {
+      setLoadingResumes(false);
+    }
+  };
+
+  const assignPanelistToResume = (resumeId: string, panelistId: string) => {
+    setShortlistedResumes(prev => prev.map(resume => 
+      resume.id === resumeId 
+        ? { ...resume, assigned_panelist: panelistId }
+        : resume
+    ));
+  };
+
   const mockScheduleInterview = (candidateName: string, requiredSkills: string[]) => {
     // Find available panelists with matching skills
     const matchingPanelists = panelists.filter(panelist => 
@@ -170,6 +248,148 @@ const InterviewScheduler = () => {
           <p className="text-base sm:text-lg text-gray-600 px-2">
             Manage panel availability and auto-schedule interviews with shortlisted candidates
           </p>
+        </div>
+
+        {/* Data Management Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Data Management</h2>
+            <div className="flex gap-2">
+              <Button
+                onClick={fetchPanelists}
+                disabled={loadingPanelists}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <UserCheck className="w-4 h-4" />
+                {loadingPanelists ? 'Loading...' : 'Check Panelists'}
+              </Button>
+              <Button
+                onClick={fetchShortlistedResumes}
+                disabled={loadingResumes}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4" />
+                {loadingResumes ? 'Loading...' : 'Get Shortlisted Resumes'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Available Panelists Display */}
+          {availablePanelists.length > 0 && (
+            <Card className="mb-4 border-blue-200 shadow-md">
+              <CardHeader className="bg-blue-50">
+                <CardTitle className="text-blue-800">Available Panelists ({availablePanelists.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availablePanelists.map((panelist) => (
+                    <div key={panelist.id} className="border rounded-lg p-3 bg-white">
+                      <h3 className="font-semibold text-gray-800">{panelist.name}</h3>
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {panelist.email}
+                      </p>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700 mb-1">Skills:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {panelist.skills.map((skill) => (
+                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700">Available:</p>
+                        <p className="text-xs text-gray-600">
+                          {panelist.available_days.join(', ')} ({panelist.start_time} - {panelist.end_time})
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Shortlisted Resumes Display */}
+          {shortlistedResumes.length > 0 && (
+            <Card className="mb-4 border-green-200 shadow-md">
+              <CardHeader className="bg-green-50">
+                <CardTitle className="text-green-800">Shortlisted Resumes ({shortlistedResumes.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="mt-4">
+                <div className="space-y-4">
+                  {shortlistedResumes.map((resume) => (
+                    <div key={resume.id} className="border rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-800">{resume.candidate_name}</h3>
+                          <p className="text-sm text-gray-600">{resume.experience} years experience</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
+                            Shortlisted
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">Matched Skills:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {resume.matched_skills.map((skill) => (
+                              <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">Tech Stack:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {resume.tech_stack.slice(0, 3).map((tech) => (
+                              <span key={tech} className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
+                                {tech}
+                              </span>
+                            ))}
+                            {resume.tech_stack.length > 3 && (
+                              <span className="text-xs text-gray-500">+{resume.tech_stack.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">Assign Panelist:</label>
+                          <select
+                            value={resume.assigned_panelist || ''}
+                            onChange={(e) => assignPanelistToResume(resume.id, e.target.value)}
+                            className="text-sm border rounded px-2 py-1"
+                          >
+                            <option value="">Select Panelist</option>
+                            {availablePanelists.map((panelist) => (
+                              <option key={panelist.id} value={panelist.id.toString()}>
+                                {panelist.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {resume.assigned_panelist && (
+                          <div className="text-sm text-green-600 font-medium">
+                            Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Panel Management Section */}

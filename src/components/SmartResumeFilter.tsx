@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Calendar, UserCheck, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -24,6 +24,17 @@ interface ResumeAnalysis {
   worked_on: string[];
 }
 
+interface Panelist {
+  id: number;
+  name: string;
+  email: string;
+  skills: string[];
+  available_days: string[];
+  start_time: string;
+  end_time: string;
+  created_at: string;
+}
+
 const SmartResumeFilter = () => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirements>({
     jobTitle: '',
@@ -40,6 +51,8 @@ const SmartResumeFilter = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [panelists, setPanelists] = useState<Panelist[]>([]);
+  const [savingCandidates, setSavingCandidates] = useState<Record<string, boolean>>({});
 
   const addSkill = () => {
     if (skillInput.trim() && !jobRequirements.requiredSkills.includes(skillInput.trim())) {
@@ -112,6 +125,65 @@ const SmartResumeFilter = () => {
       alert('Error submitting job requirements. Please check your connection.');
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const fetchPanelists = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/panelists');
+      if (response.ok) {
+        const data = await response.json();
+        setPanelists(data);
+        console.log('Available panelists:', data);
+        alert(`Found ${data.length} available panelists! Check console for details.`);
+      } else {
+        console.error('Failed to fetch panelists:', response.statusText);
+        alert('Failed to fetch panelists. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching panelists:', error);
+      alert('Error fetching panelists. Please check your connection.');
+    }
+  };
+
+  const saveCandidateDetails = async (analysis: ResumeAnalysis) => {
+    setSavingCandidates(prev => ({ ...prev, [analysis.id]: true }));
+    
+    const payload = {
+      resume_filename: analysis.fileName,
+      candidate_name: analysis.fileName.replace('.pdf', ''), // Extract name from filename
+      experience: analysis.candidate_experience,
+      matched_skills: analysis.matched_skills,
+      missing_skills: analysis.missing_skills,
+      tech_stack: analysis.mentioned_tech_stack,
+      reason: analysis.reason,
+      shortlisted: analysis.shortlisted,
+      worked_on: analysis.worked_on,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      const response = await fetch('http://localhost:5000/shortlist-resume/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Candidate details saved successfully:', result);
+        alert('Candidate details saved successfully!');
+      } else {
+        console.error('Failed to save candidate details:', response.statusText);
+        alert('Failed to save candidate details. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving candidate details:', error);
+      alert('Error saving candidate details. Please check your connection.');
+    } finally {
+      setSavingCandidates(prev => ({ ...prev, [analysis.id]: false }));
     }
   };
 
@@ -437,6 +509,14 @@ const SmartResumeFilter = () => {
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button
+                      onClick={fetchPanelists}
+                      className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                      size="sm"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Check Panelists
+                    </Button>
+                    <Button
                       variant={viewMode === 'cards' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setViewMode('cards')}
@@ -541,6 +621,18 @@ const SmartResumeFilter = () => {
                           <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
                           <p className="text-sm text-gray-800">{analysis.reason}</p>
                         </div>
+
+                        <div className="pt-2 border-t">
+                          <Button
+                            onClick={() => saveCandidateDetails(analysis)}
+                            disabled={savingCandidates[analysis.id]}
+                            className="w-full bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
+                            size="sm"
+                          >
+                            <Save className="w-4 h-4" />
+                            {savingCandidates[analysis.id] ? 'Saving...' : 'Save to Database'}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -555,6 +647,7 @@ const SmartResumeFilter = () => {
                           <th className="text-left p-2">Matched Skills</th>
                           <th className="text-left p-2">Missing Skills</th>
                           <th className="text-left p-2">Reasoning</th>
+                          <th className="text-left p-2">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -587,6 +680,17 @@ const SmartResumeFilter = () => {
                               </div>
                             </td>
                             <td className="p-2 text-sm max-w-xs">{analysis.reason}</td>
+                            <td className="p-2">
+                              <Button
+                                onClick={() => saveCandidateDetails(analysis)}
+                                disabled={savingCandidates[analysis.id]}
+                                className="bg-orange-600 hover:bg-orange-700 flex items-center gap-1"
+                                size="sm"
+                              >
+                                <Save className="w-3 h-3" />
+                                {savingCandidates[analysis.id] ? 'Saving...' : 'Save'}
+                              </Button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>

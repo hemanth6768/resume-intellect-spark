@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { useToast } from "@/hooks/use-toast";
 
 interface TimeSlot {
   start: string;
@@ -68,6 +69,8 @@ const InterviewScheduler = () => {
   const [shortlistedResumes, setShortlistedResumes] = useState<ShortlistedResume[]>([]);
   const [loadingPanelists, setLoadingPanelists] = useState(false);
   const [loadingResumes, setLoadingResumes] = useState(false);
+  const [addingPanelist, setAddingPanelist] = useState(false);
+  const { toast } = useToast();
   
   const [newPanelist, setNewPanelist] = useState({
     name: '',
@@ -103,47 +106,96 @@ const InterviewScheduler = () => {
     }));
   };
 
-  const addPanelist = () => {
+  const addPanelist = async () => {
+    // Validate required fields
     if (!newPanelist.name.trim() || !newPanelist.email.trim() || newPanelist.skills.length === 0) {
-      alert('Please fill in all required fields');
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Name, Email, and at least one skill)",
+        variant: "destructive"
+      });
       return;
     }
 
-    const weeklyAvailability: { [key: string]: TimeSlot[] } = {};
-    
-    if (availabilityForm.selectedDays.length > 0 && availabilityForm.startTime && availabilityForm.endTime) {
-      availabilityForm.selectedDays.forEach(day => {
-        weeklyAvailability[day] = [{
-          start: availabilityForm.startTime,
-          end: availabilityForm.endTime
-        }];
+    if (availabilityForm.selectedDays.length === 0 || !availabilityForm.startTime || !availabilityForm.endTime) {
+      toast({
+        title: "Validation Error",
+        description: "Please select availability days and time slots",
+        variant: "destructive"
       });
+      return;
     }
 
-    const panelist: PanelistAvailability = {
-      id: `panelist-${Date.now()}`,
-      name: newPanelist.name,
-      email: newPanelist.email,
-      skills: newPanelist.skills,
-      weeklyAvailability,
-      unavailableDates: []
-    };
+    setAddingPanelist(true);
 
-    setPanelists(prev => [...prev, panelist]);
-    
-    // Reset form
-    setNewPanelist({
-      name: '',
-      email: '',
-      skills: [],
-      skillInput: ''
-    });
-    setAvailabilityForm({
-      selectedDays: [],
-      startTime: '',
-      endTime: ''
-    });
-    setIsAddingPanelist(false);
+    try {
+      // Convert day names to the format expected by your API
+      const availableDays = availabilityForm.selectedDays.map(day => day.slice(0, 3)); // Convert "Monday" to "Mon"
+
+      const panelistData = {
+        name: newPanelist.name.trim(),
+        email: newPanelist.email.trim(),
+        skills: newPanelist.skills,
+        available_days: availableDays,
+        start_time: availabilityForm.startTime,
+        end_time: availabilityForm.endTime
+      };
+
+      console.log('Sending panelist data to API:', panelistData);
+
+      const response = await fetch('http://localhost:5000/add-panelist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(panelistData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Panelist added successfully:', result);
+        
+        toast({
+          title: "Success!",
+          description: `Panelist ${newPanelist.name} has been added successfully.`,
+        });
+
+        // Reset form
+        setNewPanelist({
+          name: '',
+          email: '',
+          skills: [],
+          skillInput: ''
+        });
+        setAvailabilityForm({
+          selectedDays: [],
+          startTime: '',
+          endTime: ''
+        });
+        setIsAddingPanelist(false);
+
+        // Refresh the panelists list
+        fetchPanelists();
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Failed to add panelist:', response.status, errorData);
+        
+        toast({
+          title: "Error",
+          description: errorData.message || `Failed to add panelist. Server responded with status ${response.status}`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error adding panelist:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to connect to the server. Please check your connection and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAddingPanelist(false);
+    }
   };
 
   const toggleDaySelection = (day: string) => {
@@ -460,7 +512,7 @@ const InterviewScheduler = () => {
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Weekly Availability</Label>
+                  <Label className="text-sm font-medium">Weekly Availability *</Label>
                   <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 mt-2">
                     {daysOfWeek.map((day) => (
                       <button
@@ -481,7 +533,7 @@ const InterviewScheduler = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium">Start Time</Label>
+                    <Label className="text-sm font-medium">Start Time *</Label>
                     <Input
                       type="time"
                       value={availabilityForm.startTime}
@@ -490,7 +542,7 @@ const InterviewScheduler = () => {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium">End Time</Label>
+                    <Label className="text-sm font-medium">End Time *</Label>
                     <Input
                       type="time"
                       value={availabilityForm.endTime}
@@ -501,12 +553,17 @@ const InterviewScheduler = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={addPanelist} className="bg-blue-600 hover:bg-blue-700">
-                    Add Panelist
+                  <Button 
+                    onClick={addPanelist} 
+                    disabled={addingPanelist}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {addingPanelist ? 'Adding...' : 'Add Panelist'}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => setIsAddingPanelist(false)}
+                    disabled={addingPanelist}
                   >
                     Cancel
                   </Button>

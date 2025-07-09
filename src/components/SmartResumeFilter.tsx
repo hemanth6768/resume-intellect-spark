@@ -15,7 +15,7 @@ interface JobRequirements {
 interface ResumeAnalysis {
   id: string;
   fileName: string;
-  experience_years: number;
+  candidate_experience: number;
   matched_skills: string[];
   mentioned_tech_stack: string[];
   missing_skills: string[];
@@ -161,7 +161,7 @@ const SmartResumeFilter = () => {
           const analysis: ResumeAnalysis = {
             id: `resume-${i}`,
             fileName: file.name,
-            experience_years: result.experience_years || 0,
+            candidate_experience: result.candidate_experience || 0,
             matched_skills: result.matched_skills || [],
             mentioned_tech_stack: result.mentioned_tech_stack || [],
             missing_skills: result.missing_skills || [],
@@ -190,7 +190,7 @@ const SmartResumeFilter = () => {
   const sortedAnalyses = [...analyses].sort((a, b) => {
     if (a.shortlisted && !b.shortlisted) return -1;
     if (!a.shortlisted && b.shortlisted) return 1;
-    return b.experience_years - a.experience_years;
+    return b.candidate_experience - a.candidate_experience;
   });
 
   const canAnalyze = resumes.length > 0 && (uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
@@ -227,7 +227,6 @@ const SmartResumeFilter = () => {
           </div>
         </div>
 
-        {/* Step 1: Job Requirements */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
@@ -243,7 +242,6 @@ const SmartResumeFilter = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 mt-6">
-              {/* Job Title */}
               <div>
                 <Label className="text-sm font-medium">Job Title *</Label>
                 <Input
@@ -258,7 +256,6 @@ const SmartResumeFilter = () => {
                 <p className="text-xs text-gray-500 mt-1">This will be used as the default for resume analysis</p>
               </div>
 
-              {/* Required Skills */}
               <div>
                 <Label className="text-sm font-medium">Required Skills</Label>
                 <Input
@@ -284,7 +281,6 @@ const SmartResumeFilter = () => {
                 </div>
               </div>
 
-              {/* Minimum Experience */}
               <div>
                 <Label className="text-sm font-medium">Minimum Years of Experience</Label>
                 <Input
@@ -299,7 +295,6 @@ const SmartResumeFilter = () => {
                 />
               </div>
 
-              {/* Tech Stack */}
               <div>
                 <Label className="text-sm font-medium">Tech Stack (Optional)</Label>
                 <Input
@@ -325,7 +320,6 @@ const SmartResumeFilter = () => {
                 </div>
               </div>
 
-              {/* Submit Button */}
               <Button
                 onClick={submitJobRequirements}
                 disabled={submitLoading || !jobRequirements.jobTitle.trim() || jobRequirements.requiredSkills.length === 0}
@@ -338,7 +332,6 @@ const SmartResumeFilter = () => {
           </Card>
         </div>
 
-        {/* Step 2: Resume Analysis */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
@@ -354,7 +347,6 @@ const SmartResumeFilter = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 mt-6">
-              {/* Job Title for Analysis */}
               <div>
                 <Label className="text-sm font-medium">Job Title for Analysis</Label>
                 <Input
@@ -370,7 +362,6 @@ const SmartResumeFilter = () => {
                 </p>
               </div>
 
-              {/* File Upload */}
               <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
                 <Upload className="w-12 h-12 text-purple-400 mx-auto mb-4" />
                 <label htmlFor="resume-files" className="cursor-pointer">
@@ -487,7 +478,7 @@ const SmartResumeFilter = () => {
                           
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Experience:</span>
-                            <span className="font-medium">{analysis.experience_years} years</span>
+                            <span className="font-medium">{analysis.candidate_experience} years</span>
                           </div>
                         </div>
 
@@ -529,6 +520,23 @@ const SmartResumeFilter = () => {
                           </div>
                         </div>
 
+                        {analysis.worked_on.length > 0 && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Experience Highlights:</p>
+                            <ul className="text-xs text-gray-700 space-y-1">
+                              {analysis.worked_on.slice(0, 2).map((work, index) => (
+                                <li key={index} className="flex items-start gap-1">
+                                  <span className="text-blue-500 mt-1">•</span>
+                                  <span>{work}</span>
+                                </li>
+                              ))}
+                              {analysis.worked_on.length > 2 && (
+                                <li className="text-gray-500">+{analysis.worked_on.length - 2} more...</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
                           <p className="text-sm text-gray-800">{analysis.reason}</p>
@@ -559,7 +567,7 @@ const SmartResumeFilter = () => {
                                 {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
                               </span>
                             </td>
-                            <td className="p-2">{analysis.experience_years} years</td>
+                            <td className="p-2">{analysis.candidate_experience} years</td>
                             <td className="p-2">
                               <div className="flex flex-wrap gap-1">
                                 {analysis.matched_skills.map((skill) => (
@@ -586,7 +594,6 @@ const SmartResumeFilter = () => {
                   </div>
                 )}
 
-                {/* Question Generation Button */}
                 <div className="mt-6 pt-6 border-t border-green-200">
                   <div className="text-center">
                     <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center justify-center gap-2">

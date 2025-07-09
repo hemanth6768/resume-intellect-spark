@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
 import ResumeUploader from "../components/ResumeUploader";
 import SmartResumeFilter from "../components/SmartResumeFilter";
+import InterviewScheduler from "../components/InterviewScheduler";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'filter' | 'questions'>('filter');
+  const [activeTab, setActiveTab] = useState<'filter' | 'questions' | 'scheduler'>('filter');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,13 +28,22 @@ const Index = () => {
             >
               🤖 Question Generator
             </Button>
+            <Button
+              variant={activeTab === 'scheduler' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('scheduler')}
+              className="flex items-center gap-2"
+            >
+              📅 Interview Scheduler
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="min-h-screen">
-        {activeTab === 'filter' ? <SmartResumeFilter /> : <ResumeUploader />}
+        {activeTab === 'filter' && <SmartResumeFilter />}
+        {activeTab === 'questions' && <ResumeUploader />}
+        {activeTab === 'scheduler' && <InterviewScheduler />}
       </div>
     </div>
   );

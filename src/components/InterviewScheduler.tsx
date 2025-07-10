@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -59,9 +60,12 @@ interface Panelist {
   name: string;
   email: string;
   skills: string[];
-  available_days: string[];
-  start_time: string;
-  end_time: string;
+  availability: {
+    [key: string]: {
+      start_time: string;
+      end_time: string;
+    };
+  };
   created_at: string;
 }
 
@@ -129,6 +133,30 @@ const InterviewScheduler = () => {
 
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Helper function to get available days from API response
+  const getAvailableDaysDisplay = (availability: { [key: string]: { start_time: string; end_time: string } }) => {
+    if (!availability || typeof availability !== 'object') {
+      return 'No availability set';
+    }
+    
+    const days = Object.keys(availability);
+    if (days.length === 0) {
+      return 'No availability set';
+    }
+    
+    return days.join(', ');
+  };
+
+  // Helper function to get time range from availability
+  const getTimeRangeDisplay = (availability: { [key: string]: { start_time: string; end_time: string } }) => {
+    if (!availability || typeof availability !== 'object') {
+      return '';
+    }
+    
+    const timeRanges = Object.values(availability).map(slot => `${slot.start_time}-${slot.end_time}`);
+    return timeRanges.length > 0 ? timeRanges.join(', ') : '';
+  };
 
   const addSkillToPanelist = () => {
     if (newPanelist.skillInput.trim() && !newPanelist.skills.includes(newPanelist.skillInput.trim())) {
@@ -579,7 +607,7 @@ const InterviewScheduler = () => {
                       <div className="mt-2">
                         <p className="text-sm font-medium text-gray-700 mb-1">Skills:</p>
                         <div className="flex flex-wrap gap-1">
-                          {panelist.skills.map((skill) => (
+                          {(panelist.skills || []).map((skill) => (
                             <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                               {skill}
                             </span>
@@ -589,7 +617,8 @@ const InterviewScheduler = () => {
                       <div className="mt-2">
                         <p className="text-sm font-medium text-gray-700">Available:</p>
                         <p className="text-xs text-gray-600">
-                          {panelist.available_days.join(', ')} ({panelist.start_time} - {panelist.end_time})
+                          {getAvailableDaysDisplay(panelist.availability)} 
+                          {getTimeRangeDisplay(panelist.availability) && ` (${getTimeRangeDisplay(panelist.availability)})`}
                         </p>
                       </div>
                     </div>
@@ -625,7 +654,7 @@ const InterviewScheduler = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-700 mb-1">Matched Skills:</p>
                           <div className="flex flex-wrap gap-1">
-                            {resume.matched_skills.map((skill) => (
+                            {(resume.matched_skills || []).map((skill) => (
                               <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                                 {skill}
                               </span>
@@ -636,12 +665,12 @@ const InterviewScheduler = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-700 mb-1">Tech Stack:</p>
                           <div className="flex flex-wrap gap-1">
-                            {resume.tech_stack.slice(0, 3).map((tech) => (
+                            {(resume.tech_stack || []).slice(0, 3).map((tech) => (
                               <span key={tech} className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
                                 {tech}
                               </span>
                             ))}
-                            {resume.tech_stack.length > 3 && (
+                            {resume.tech_stack && resume.tech_stack.length > 3 && (
                               <span className="text-xs text-gray-500">+{resume.tech_stack.length - 3} more</span>
                             )}
                           </div>
@@ -706,7 +735,7 @@ const InterviewScheduler = () => {
                                           <p className="font-medium text-sm">{panelist.name}</p>
                                           <p className="text-xs text-gray-600">{panelist.email}</p>
                                           <div className="flex flex-wrap gap-1 mt-1">
-                                            {panelist.skills.slice(0, 3).map((skill) => (
+                                            {(panelist.skills || []).slice(0, 3).map((skill) => (
                                               <span key={skill} className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs">
                                                 {skill}
                                               </span>

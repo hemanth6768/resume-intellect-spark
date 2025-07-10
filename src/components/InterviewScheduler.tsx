@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon } from 'lucide-react';
+import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -87,8 +86,7 @@ interface InterviewSession {
 interface DayAvailability {
   day: string;
   selected: boolean;
-  startTime: string;
-  endTime: string;
+  timeSlots: TimeSlot[];
 }
 
 interface PanelistWithAvailability extends Panelist {
@@ -121,13 +119,13 @@ const InterviewScheduler = () => {
 
   const [availabilityForm, setAvailabilityForm] = useState({
     dayAvailabilities: [
-      { day: 'Mon', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Tue', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Wed', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Thu', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Fri', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Sat', selected: false, startTime: '09:00', endTime: '17:00' },
-      { day: 'Sun', selected: false, startTime: '09:00', endTime: '17:00' }
+      { day: 'Mon', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Tue', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Wed', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Thu', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Fri', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Sat', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+      { day: 'Sun', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] }
     ] as DayAvailability[]
   });
 
@@ -183,10 +181,37 @@ const InterviewScheduler = () => {
     }));
   };
 
-  const updateDayTime = (dayIndex: number, field: 'startTime' | 'endTime', value: string) => {
+  const addTimeSlot = (dayIndex: number) => {
     setAvailabilityForm(prev => ({
       dayAvailabilities: prev.dayAvailabilities.map((day, index) => 
-        index === dayIndex ? { ...day, [field]: value } : day
+        index === dayIndex 
+          ? { ...day, timeSlots: [...day.timeSlots, { start: '09:00', end: '17:00' }] }
+          : day
+      )
+    }));
+  };
+
+  const removeTimeSlot = (dayIndex: number, slotIndex: number) => {
+    setAvailabilityForm(prev => ({
+      dayAvailabilities: prev.dayAvailabilities.map((day, index) => 
+        index === dayIndex 
+          ? { ...day, timeSlots: day.timeSlots.filter((_, sIndex) => sIndex !== slotIndex) }
+          : day
+      )
+    }));
+  };
+
+  const updateTimeSlot = (dayIndex: number, slotIndex: number, field: 'start' | 'end', value: string) => {
+    setAvailabilityForm(prev => ({
+      dayAvailabilities: prev.dayAvailabilities.map((day, index) => 
+        index === dayIndex 
+          ? {
+              ...day,
+              timeSlots: day.timeSlots.map((slot, sIndex) =>
+                sIndex === slotIndex ? { ...slot, [field]: value } : slot
+              )
+            }
+          : day
       )
     }));
   };
@@ -212,16 +237,46 @@ const InterviewScheduler = () => {
       return;
     }
 
+    // Validate time slots
+    for (const day of selectedDays) {
+      if (day.timeSlots.length === 0) {
+        toast({
+          title: "Validation Error",
+          description: `Please add at least one time slot for ${day.day}`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      for (const slot of day.timeSlots) {
+        if (!slot.start || !slot.end || slot.start >= slot.end) {
+          toast({
+            title: "Validation Error",
+            description: `Invalid time slot for ${day.day}. Start time must be before end time.`,
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+    }
+
     setAddingPanelist(true);
 
     try {
-      // Build availability object in the expected API format
-      const availability: Record<string, { start_time: string; end_time: string }> = {};
+      // Build availability object in the new API format
+      const availability: Record<string, TimeSlot[]> = {};
+      
+      // Initialize all days with empty arrays
+      dayShorts.forEach(day => {
+        availability[day] = [];
+      });
+      
+      // Add time slots for selected days
       selectedDays.forEach(day => {
-        availability[day.day] = {
-          start_time: day.startTime,
-          end_time: day.endTime
-        };
+        availability[day.day] = day.timeSlots.map(slot => ({
+          start: slot.start,
+          end: slot.end
+        }));
       });
 
       const panelistData = {
@@ -259,13 +314,13 @@ const InterviewScheduler = () => {
         });
         setAvailabilityForm({
           dayAvailabilities: [
-            { day: 'Mon', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Tue', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Wed', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Thu', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Fri', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Sat', selected: false, startTime: '09:00', endTime: '17:00' },
-            { day: 'Sun', selected: false, startTime: '09:00', endTime: '17:00' }
+            { day: 'Mon', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Tue', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Wed', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Thu', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Fri', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Sat', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] },
+            { day: 'Sun', selected: false, timeSlots: [{ start: '09:00', end: '17:00' }] }
           ]
         });
         setIsAddingPanelist(false);
@@ -923,27 +978,59 @@ const InterviewScheduler = () => {
                             />
                             <span className="font-medium text-sm">{dayNames[dayIndex]} ({day.day})</span>
                           </div>
+                          {day.selected && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addTimeSlot(dayIndex)}
+                              className="text-xs"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Add Time Slot
+                            </Button>
+                          )}
                         </div>
                         {day.selected && (
-                          <div className="grid grid-cols-2 gap-2 mt-2">
-                            <div>
-                              <Label className="text-xs text-gray-600">Start Time</Label>
-                              <Input
-                                type="time"
-                                value={day.startTime}
-                                onChange={(e) => updateDayTime(dayIndex, 'startTime', e.target.value)}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-xs text-gray-600">End Time</Label>
-                              <Input
-                                type="time"
-                                value={day.endTime}
-                                onChange={(e) => updateDayTime(dayIndex, 'endTime', e.target.value)}
-                                className="mt-1"
-                              />
-                            </div>
+                          <div className="space-y-2 mt-2">
+                            {day.timeSlots.map((slot, slotIndex) => (
+                              <div key={slotIndex} className="grid grid-cols-5 gap-2 items-center">
+                                <div>
+                                  <Label className="text-xs text-gray-600">Start Time</Label>
+                                  <Input
+                                    type="time"
+                                    value={slot.start}
+                                    onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'start', e.target.value)}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs text-gray-600">End Time</Label>
+                                  <Input
+                                    type="time"
+                                    value={slot.end}
+                                    onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'end', e.target.value)}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div className="col-span-2 text-xs text-gray-600 pt-6">
+                                  {slot.start} - {slot.end}
+                                </div>
+                                <div className="pt-6">
+                                  {day.timeSlots.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => removeTimeSlot(dayIndex, slotIndex)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

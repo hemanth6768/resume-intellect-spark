@@ -99,7 +99,7 @@ const SmartResumeFilter = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:5004/add-requirement', {
+      const response = await fetch('http://localhost:5000/add-requirement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ const SmartResumeFilter = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:5004/shortlist-resume/save', {
+      const response = await fetch('http://localhost:5000/shortlist-resume/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +228,7 @@ const SmartResumeFilter = () => {
 
         console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
         
-        const response = await fetch('http://localhost:5004/shortlist-resume', {
+        const response = await fetch('http://localhost:5000/shortlist-resume', {
           method: 'POST',
           body: formData
         });

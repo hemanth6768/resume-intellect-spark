@@ -205,7 +205,7 @@ const InterviewScheduler = () => {
 
       console.log('Sending panelist data to API:', panelistData);
 
-      const response = await fetch('http://localhost:5004/add-panelist', {
+      const response = await fetch('http://localhost:5000/add-panelist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -269,7 +269,7 @@ const InterviewScheduler = () => {
   const fetchPanelists = async () => {
     setLoadingPanelists(true);
     try {
-      const response = await fetch('http://localhost:5004/panelists');
+      const response = await fetch('http://localhost:5000/panelists');
       if (response.ok) {
         const data = await response.json();
         setAvailablePanelists(data);
@@ -301,7 +301,7 @@ const InterviewScheduler = () => {
   const fetchShortlistedResumes = async () => {
     setLoadingResumes(true);
     try {
-      const response = await fetch('http://localhost:5004/shortlist-resume/list');
+      const response = await fetch('http://localhost:5000/shortlist-resume/list');
       if (response.ok) {
         const data = await response.json();
         setShortlistedResumes(data);
@@ -333,7 +333,7 @@ const InterviewScheduler = () => {
   const fetchInterviewSessions = async () => {
     setLoadingSessions(true);
     try {
-      const response = await fetch('http://localhost:5004/interview-sessions');
+      const response = await fetch('http://localhost:5000/interview-sessions');
       if (response.ok) {
         const data = await response.json();
         setInterviewSessions(data);
@@ -371,7 +371,7 @@ const InterviewScheduler = () => {
 
       for (const panelist of availablePanelists) {
         try {
-          const response = await fetch(`http://localhost:5004/check-availability?panelist_id=${panelist.id}&date=${dateStr}`);
+          const response = await fetch(`http://localhost:5000/check-availability?panelist_id=${panelist.id}&date=${dateStr}`);
           if (response.ok) {
             const data = await response.json();
             if (data.available) {
@@ -413,7 +413,7 @@ const InterviewScheduler = () => {
     setAssigningPanelist(prev => ({ ...prev, [resumeId]: true }));
 
     try {
-      const response = await fetch('http://localhost:5004/assign-panel', {
+      const response = await fetch('http://localhost:5000/assign-panel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

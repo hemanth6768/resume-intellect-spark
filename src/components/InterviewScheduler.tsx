@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download } from 'lucide-react';
+import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarComponent } from './ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface TimeSlot {
   start: string;
@@ -76,10 +80,15 @@ interface InterviewSession {
   created_at: string;
 }
 
-interface DayTimeSlot {
+interface DayAvailability {
   day: string;
+  selected: boolean;
   startTime: string;
   endTime: string;
+}
+
+interface PanelistWithAvailability extends Panelist {
+  availableSlots?: { start_time: string; end_time: string }[];
 }
 
 const InterviewScheduler = () => {
@@ -94,6 +103,9 @@ const InterviewScheduler = () => {
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [addingPanelist, setAddingPanelist] = useState(false);
   const [assigningPanelist, setAssigningPanelist] = useState<Record<string, boolean>>({});
+  const [selectedDates, setSelectedDates] = useState<Record<string, Date>>({});
+  const [availablePanelistsForDate, setAvailablePanelistsForDate] = useState<Record<string, PanelistWithAvailability[]>>({});
+  const [checkingAvailability, setCheckingAvailability] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   
   const [newPanelist, setNewPanelist] = useState({
@@ -104,13 +116,19 @@ const InterviewScheduler = () => {
   });
 
   const [availabilityForm, setAvailabilityForm] = useState({
-    selectedDays: [] as string[],
-    dayTimeSlots: [] as DayTimeSlot[]
+    dayAvailabilities: [
+      { day: 'Mon', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Tue', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Wed', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Thu', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Fri', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Sat', selected: false, startTime: '09:00', endTime: '17:00' },
+      { day: 'Sun', selected: false, startTime: '09:00', endTime: '17:00' }
+    ] as DayAvailability[]
   });
 
-  const daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-  ];
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const addSkillToPanelist = () => {
     if (newPanelist.skillInput.trim() && !newPanelist.skills.includes(newPanelist.skillInput.trim())) {
@@ -129,29 +147,18 @@ const InterviewScheduler = () => {
     }));
   };
 
-  const toggleDaySelection = (day: string) => {
-    const isSelected = availabilityForm.selectedDays.includes(day);
-    
-    if (isSelected) {
-      // Remove day and its time slot
-      setAvailabilityForm(prev => ({
-        selectedDays: prev.selectedDays.filter(d => d !== day),
-        dayTimeSlots: prev.dayTimeSlots.filter(slot => slot.day !== day)
-      }));
-    } else {
-      // Add day with default time slot
-      setAvailabilityForm(prev => ({
-        selectedDays: [...prev.selectedDays, day],
-        dayTimeSlots: [...prev.dayTimeSlots, { day, startTime: '09:00', endTime: '17:00' }]
-      }));
-    }
+  const toggleDayAvailability = (dayIndex: number) => {
+    setAvailabilityForm(prev => ({
+      dayAvailabilities: prev.dayAvailabilities.map((day, index) => 
+        index === dayIndex ? { ...day, selected: !day.selected } : day
+      )
+    }));
   };
 
-  const updateDayTimeSlot = (day: string, field: 'startTime' | 'endTime', value: string) => {
+  const updateDayTime = (dayIndex: number, field: 'startTime' | 'endTime', value: string) => {
     setAvailabilityForm(prev => ({
-      ...prev,
-      dayTimeSlots: prev.dayTimeSlots.map(slot =>
-        slot.day === day ? { ...slot, [field]: value } : slot
+      dayAvailabilities: prev.dayAvailabilities.map((day, index) => 
+        index === dayIndex ? { ...day, [field]: value } : day
       )
     }));
   };
@@ -167,10 +174,11 @@ const InterviewScheduler = () => {
       return;
     }
 
-    if (availabilityForm.selectedDays.length === 0 || availabilityForm.dayTimeSlots.length === 0) {
+    const selectedDays = availabilityForm.dayAvailabilities.filter(day => day.selected);
+    if (selectedDays.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please select availability days and time slots",
+        description: "Please select at least one day of availability",
         variant: "destructive"
       });
       return;
@@ -179,20 +187,20 @@ const InterviewScheduler = () => {
     setAddingPanelist(true);
 
     try {
-      // Convert day names to the format expected by your API
-      const availableDays = availabilityForm.selectedDays.map(day => day.slice(0, 3)); // Convert "Monday" to "Mon"
-
-      // For now, use the first time slot as the general availability
-      // This can be enhanced later to support different times per day
-      const firstTimeSlot = availabilityForm.dayTimeSlots[0];
+      // Build availability object in the expected API format
+      const availability: Record<string, { start_time: string; end_time: string }> = {};
+      selectedDays.forEach(day => {
+        availability[day.day] = {
+          start_time: day.startTime,
+          end_time: day.endTime
+        };
+      });
 
       const panelistData = {
         name: newPanelist.name.trim(),
         email: newPanelist.email.trim(),
         skills: newPanelist.skills,
-        available_days: availableDays,
-        start_time: firstTimeSlot.startTime,
-        end_time: firstTimeSlot.endTime
+        availability: availability
       };
 
       console.log('Sending panelist data to API:', panelistData);
@@ -222,8 +230,15 @@ const InterviewScheduler = () => {
           skillInput: ''
         });
         setAvailabilityForm({
-          selectedDays: [],
-          dayTimeSlots: []
+          dayAvailabilities: [
+            { day: 'Mon', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Tue', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Wed', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Thu', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Fri', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Sat', selected: false, startTime: '09:00', endTime: '17:00' },
+            { day: 'Sun', selected: false, startTime: '09:00', endTime: '17:00' }
+          ]
         });
         setIsAddingPanelist(false);
 
@@ -347,39 +362,57 @@ const InterviewScheduler = () => {
     }
   };
 
-  const checkPanelistAvailability = async (panelistId: number) => {
+  const checkAvailabilityForDate = async (resumeId: string, date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    setCheckingAvailability(prev => ({ ...prev, [resumeId]: true }));
+
     try {
-      const response = await fetch(`http://localhost:5004/check-availability?panelist_id=${panelistId}`);
-      if (response.ok) {
-        const data = await response.json();
-        return data.available;
+      const availablePanelistsForSelectedDate: PanelistWithAvailability[] = [];
+
+      for (const panelist of availablePanelists) {
+        try {
+          const response = await fetch(`http://localhost:5004/check-availability?panelist_id=${panelist.id}&date=${dateStr}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.available) {
+              availablePanelistsForSelectedDate.push({
+                ...panelist,
+                availableSlots: data.available_slots || []
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`Error checking availability for panelist ${panelist.id}:`, error);
+        }
       }
-      return false;
+
+      setAvailablePanelistsForDate(prev => ({
+        ...prev,
+        [resumeId]: availablePanelistsForSelectedDate
+      }));
+
+      toast({
+        title: "Availability Check Complete",
+        description: `Found ${availablePanelistsForSelectedDate.length} available panelists for ${format(date, 'PPP')}`,
+      });
     } catch (error) {
       console.error('Error checking availability:', error);
-      return false;
+      toast({
+        title: "Error",
+        description: "Failed to check panelist availability.",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingAvailability(prev => ({ ...prev, [resumeId]: false }));
     }
   };
 
-  const assignPanelistToResume = async (resumeId: string, panelistId: string) => {
+  const assignPanelistToResume = async (resumeId: string, panelistId: string, timeSlot?: { start_time: string; end_time: string }) => {
     if (!panelistId) return;
 
     setAssigningPanelist(prev => ({ ...prev, [resumeId]: true }));
 
     try {
-      // Check availability first
-      const isAvailable = await checkPanelistAvailability(Number(panelistId));
-      
-      if (!isAvailable) {
-        toast({
-          title: "Unavailable",
-          description: "This panelist is not available at the moment.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Assign panelist
       const response = await fetch('http://localhost:5004/assign-panel', {
         method: 'POST',
         headers: {
@@ -387,7 +420,9 @@ const InterviewScheduler = () => {
         },
         body: JSON.stringify({
           resume_id: resumeId,
-          panelist_id: Number(panelistId)
+          panelist_id: Number(panelistId),
+          date: selectedDates[resumeId] ? format(selectedDates[resumeId], 'yyyy-MM-dd') : undefined,
+          time_slot: timeSlot
         })
       });
 
@@ -406,6 +441,18 @@ const InterviewScheduler = () => {
         toast({
           title: "Success!",
           description: `Panelist ${assignedPanelist?.name} has been assigned successfully.`,
+        });
+
+        // Clear the date selection and available panelists for this resume
+        setSelectedDates(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+        setAvailablePanelistsForDate(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
         });
 
         // Refresh interview sessions
@@ -601,30 +648,111 @@ const InterviewScheduler = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium text-gray-700">Assign Panelist:</label>
-                          <select
-                            value={resume.assigned_panelist || ''}
-                            onChange={(e) => assignPanelistToResume(resume.id, e.target.value)}
-                            disabled={assigningPanelist[resume.id]}
-                            className="text-sm border rounded px-2 py-1 bg-white"
-                          >
-                            <option value="">Select Panelist</option>
-                            {availablePanelists.map((panelist) => (
-                              <option key={panelist.id} value={panelist.id.toString()}>
-                                {panelist.name}
-                              </option>
-                            ))}
-                          </select>
-                          {assigningPanelist[resume.id] && (
-                            <span className="text-sm text-blue-600">Assigning...</span>
-                          )}
-                        </div>
+                      {/* Assignment Workflow */}
+                      <div className="pt-3 border-t space-y-3">
+                        {!resume.assigned_panelist && (
+                          <>
+                            {/* Step 1: Select Date */}
+                            <div className="flex items-center gap-2">
+                              <label className="text-sm font-medium text-gray-700">1. Select Interview Date:</label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-[240px] justify-start text-left font-normal",
+                                      !selectedDates[resume.id] && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <CalendarComponent
+                                    mode="single"
+                                    selected={selectedDates[resume.id]}
+                                    onSelect={(date) => {
+                                      if (date) {
+                                        setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
+                                      }
+                                    }}
+                                    disabled={(date) => date < new Date()}
+                                    initialFocus
+                                    className="p-3 pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              {selectedDates[resume.id] && (
+                                <Button
+                                  onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
+                                  disabled={checkingAvailability[resume.id]}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Step 2: Show Available Panelists */}
+                            {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length > 0 && (
+                              <div>
+                                <p className="text-sm font-medium text-gray-700 mb-2">2. Available Panelists:</p>
+                                <div className="space-y-2">
+                                  {availablePanelistsForDate[resume.id].map((panelist) => (
+                                    <div key={panelist.id} className="border rounded p-2 bg-gray-50">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="font-medium text-sm">{panelist.name}</p>
+                                          <p className="text-xs text-gray-600">{panelist.email}</p>
+                                          <div className="flex flex-wrap gap-1 mt-1">
+                                            {panelist.skills.slice(0, 3).map((skill) => (
+                                              <span key={skill} className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs">
+                                                {skill}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                          {panelist.availableSlots && panelist.availableSlots.length > 0 ? (
+                                            panelist.availableSlots.map((slot, index) => (
+                                              <Button
+                                                key={index}
+                                                size="sm"
+                                                onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), slot)}
+                                                disabled={assigningPanelist[resume.id]}
+                                                className="text-xs bg-green-600 hover:bg-green-700"
+                                              >
+                                                {slot.start_time} - {slot.end_time}
+                                              </Button>
+                                            ))
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              onClick={() => assignPanelistToResume(resume.id, panelist.id.toString())}
+                                              disabled={assigningPanelist[resume.id]}
+                                              className="text-xs bg-green-600 hover:bg-green-700"
+                                            >
+                                              Assign
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length === 0 && (
+                              <p className="text-sm text-orange-600">No panelists available for the selected date.</p>
+                            )}
+                          </>
+                        )}
                         
                         {resume.assigned_panelist && (
                           <div className="text-sm text-green-600 font-medium">
-                            Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
+                            ✅ Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
                           </div>
                         )}
                       </div>
@@ -753,62 +881,46 @@ const InterviewScheduler = () => {
 
                 <div>
                   <Label className="text-sm font-medium">Weekly Availability *</Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 mt-2">
-                    {daysOfWeek.map((day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => toggleDaySelection(day)}
-                        className={`p-2 text-xs rounded border transition-colors ${
-                          availabilityForm.selectedDays.includes(day)
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'
-                        }`}
-                      >
-                        {day.slice(0, 3)}
-                      </button>
+                  <div className="space-y-3 mt-2">
+                    {availabilityForm.dayAvailabilities.map((day, dayIndex) => (
+                      <div key={day.day} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={day.selected}
+                              onChange={() => toggleDayAvailability(dayIndex)}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="font-medium text-sm">{dayNames[dayIndex]} ({day.day})</span>
+                          </div>
+                        </div>
+                        {day.selected && (
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div>
+                              <Label className="text-xs text-gray-600">Start Time</Label>
+                              <Input
+                                type="time"
+                                value={day.startTime}
+                                onChange={(e) => updateDayTime(dayIndex, 'startTime', e.target.value)}
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-gray-600">End Time</Label>
+                              <Input
+                                type="time"
+                                value={day.endTime}
+                                onChange={(e) => updateDayTime(dayIndex, 'endTime', e.target.value)}
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
-
-                {/* Time slots for selected days */}
-                {availabilityForm.selectedDays.length > 0 && (
-                  <div>
-                    <Label className="text-sm font-medium">Time Slots for Selected Days</Label>
-                    <div className="space-y-3 mt-2">
-                      {availabilityForm.selectedDays.map((day) => {
-                        const timeSlot = availabilityForm.dayTimeSlots.find(slot => slot.day === day);
-                        return (
-                          <div key={day} className="border rounded-lg p-3 bg-gray-50">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-sm">{day}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-xs text-gray-600">Start Time</Label>
-                                <Input
-                                  type="time"
-                                  value={timeSlot?.startTime || '09:00'}
-                                  onChange={(e) => updateDayTimeSlot(day, 'startTime', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-gray-600">End Time</Label>
-                                <Input
-                                  type="time"
-                                  value={timeSlot?.endTime || '17:00'}
-                                  onChange={(e) => updateDayTimeSlot(day, 'endTime', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex gap-2">
                   <Button 

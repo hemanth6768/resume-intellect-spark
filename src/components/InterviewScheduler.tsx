@@ -61,15 +61,39 @@ interface Panelist {
   created_at: string;
 }
 
+interface InterviewSession {
+  session_id: number;
+  resume_id: number;
+  resume_file: string;
+  candidate_name: string;
+  panelist_id: number;
+  panelist_name: string;
+  panelist_email: string;
+  session_date: string;
+  session_start: string;
+  session_end: string;
+  status: string;
+  created_at: string;
+}
+
+interface DayTimeSlot {
+  day: string;
+  startTime: string;
+  endTime: string;
+}
+
 const InterviewScheduler = () => {
   const [panelists, setPanelists] = useState<PanelistAvailability[]>([]);
   const [scheduledInterviews, setScheduledInterviews] = useState<ScheduledInterview[]>([]);
   const [isAddingPanelist, setIsAddingPanelist] = useState(false);
   const [availablePanelists, setAvailablePanelists] = useState<Panelist[]>([]);
   const [shortlistedResumes, setShortlistedResumes] = useState<ShortlistedResume[]>([]);
+  const [interviewSessions, setInterviewSessions] = useState<InterviewSession[]>([]);
   const [loadingPanelists, setLoadingPanelists] = useState(false);
   const [loadingResumes, setLoadingResumes] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const [addingPanelist, setAddingPanelist] = useState(false);
+  const [assigningPanelist, setAssigningPanelist] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
   
   const [newPanelist, setNewPanelist] = useState({
@@ -81,8 +105,7 @@ const InterviewScheduler = () => {
 
   const [availabilityForm, setAvailabilityForm] = useState({
     selectedDays: [] as string[],
-    startTime: '',
-    endTime: ''
+    dayTimeSlots: [] as DayTimeSlot[]
   });
 
   const daysOfWeek = [
@@ -106,6 +129,33 @@ const InterviewScheduler = () => {
     }));
   };
 
+  const toggleDaySelection = (day: string) => {
+    const isSelected = availabilityForm.selectedDays.includes(day);
+    
+    if (isSelected) {
+      // Remove day and its time slot
+      setAvailabilityForm(prev => ({
+        selectedDays: prev.selectedDays.filter(d => d !== day),
+        dayTimeSlots: prev.dayTimeSlots.filter(slot => slot.day !== day)
+      }));
+    } else {
+      // Add day with default time slot
+      setAvailabilityForm(prev => ({
+        selectedDays: [...prev.selectedDays, day],
+        dayTimeSlots: [...prev.dayTimeSlots, { day, startTime: '09:00', endTime: '17:00' }]
+      }));
+    }
+  };
+
+  const updateDayTimeSlot = (day: string, field: 'startTime' | 'endTime', value: string) => {
+    setAvailabilityForm(prev => ({
+      ...prev,
+      dayTimeSlots: prev.dayTimeSlots.map(slot =>
+        slot.day === day ? { ...slot, [field]: value } : slot
+      )
+    }));
+  };
+
   const addPanelist = async () => {
     // Validate required fields
     if (!newPanelist.name.trim() || !newPanelist.email.trim() || newPanelist.skills.length === 0) {
@@ -117,7 +167,7 @@ const InterviewScheduler = () => {
       return;
     }
 
-    if (availabilityForm.selectedDays.length === 0 || !availabilityForm.startTime || !availabilityForm.endTime) {
+    if (availabilityForm.selectedDays.length === 0 || availabilityForm.dayTimeSlots.length === 0) {
       toast({
         title: "Validation Error",
         description: "Please select availability days and time slots",
@@ -132,18 +182,22 @@ const InterviewScheduler = () => {
       // Convert day names to the format expected by your API
       const availableDays = availabilityForm.selectedDays.map(day => day.slice(0, 3)); // Convert "Monday" to "Mon"
 
+      // For now, use the first time slot as the general availability
+      // This can be enhanced later to support different times per day
+      const firstTimeSlot = availabilityForm.dayTimeSlots[0];
+
       const panelistData = {
         name: newPanelist.name.trim(),
         email: newPanelist.email.trim(),
         skills: newPanelist.skills,
         available_days: availableDays,
-        start_time: availabilityForm.startTime,
-        end_time: availabilityForm.endTime
+        start_time: firstTimeSlot.startTime,
+        end_time: firstTimeSlot.endTime
       };
 
       console.log('Sending panelist data to API:', panelistData);
 
-      const response = await fetch('http://localhost:5000/add-panelist', {
+      const response = await fetch('http://localhost:5004/add-panelist', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,8 +223,7 @@ const InterviewScheduler = () => {
         });
         setAvailabilityForm({
           selectedDays: [],
-          startTime: '',
-          endTime: ''
+          dayTimeSlots: []
         });
         setIsAddingPanelist(false);
 
@@ -198,31 +251,33 @@ const InterviewScheduler = () => {
     }
   };
 
-  const toggleDaySelection = (day: string) => {
-    setAvailabilityForm(prev => ({
-      ...prev,
-      selectedDays: prev.selectedDays.includes(day)
-        ? prev.selectedDays.filter(d => d !== day)
-        : [...prev.selectedDays, day]
-    }));
-  };
-
   const fetchPanelists = async () => {
     setLoadingPanelists(true);
     try {
-      const response = await fetch('http://localhost:5000/panelists');
+      const response = await fetch('http://localhost:5004/panelists');
       if (response.ok) {
         const data = await response.json();
         setAvailablePanelists(data);
         console.log('Available panelists:', data);
-        alert(`Found ${data.length} available panelists! Check console for details.`);
+        toast({
+          title: "Success!",
+          description: `Found ${data.length} available panelists!`,
+        });
       } else {
         console.error('Failed to fetch panelists:', response.statusText);
-        alert('Failed to fetch panelists. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to fetch panelists. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error fetching panelists:', error);
-      alert('Error fetching panelists. Please check your connection.');
+      toast({
+        title: "Network Error",
+        description: "Error fetching panelists. Please check your connection.",
+        variant: "destructive"
+      });
     } finally {
       setLoadingPanelists(false);
     }
@@ -231,30 +286,148 @@ const InterviewScheduler = () => {
   const fetchShortlistedResumes = async () => {
     setLoadingResumes(true);
     try {
-      const response = await fetch('http://localhost:5000/shortlist-resume/list');
+      const response = await fetch('http://localhost:5004/shortlist-resume/list');
       if (response.ok) {
         const data = await response.json();
         setShortlistedResumes(data);
         console.log('Shortlisted resumes:', data);
-        alert(`Found ${data.length} shortlisted resumes!`);
+        toast({
+          title: "Success!",
+          description: `Found ${data.length} shortlisted resumes!`,
+        });
       } else {
         console.error('Failed to fetch shortlisted resumes:', response.statusText);
-        alert('Failed to fetch shortlisted resumes. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to fetch shortlisted resumes. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error fetching shortlisted resumes:', error);
-      alert('Error fetching shortlisted resumes. Please check your connection.');
+      toast({
+        title: "Network Error",
+        description: "Error fetching shortlisted resumes. Please check your connection.",
+        variant: "destructive"
+      });
     } finally {
       setLoadingResumes(false);
     }
   };
 
-  const assignPanelistToResume = (resumeId: string, panelistId: string) => {
-    setShortlistedResumes(prev => prev.map(resume => 
-      resume.id === resumeId 
-        ? { ...resume, assigned_panelist: panelistId }
-        : resume
-    ));
+  const fetchInterviewSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const response = await fetch('http://localhost:5004/interview-sessions');
+      if (response.ok) {
+        const data = await response.json();
+        setInterviewSessions(data);
+        console.log('Interview sessions:', data);
+        toast({
+          title: "Success!",
+          description: `Found ${data.length} interview sessions!`,
+        });
+      } else {
+        console.error('Failed to fetch interview sessions:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch interview sessions. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching interview sessions:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching interview sessions. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const checkPanelistAvailability = async (panelistId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5004/check-availability?panelist_id=${panelistId}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.available;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      return false;
+    }
+  };
+
+  const assignPanelistToResume = async (resumeId: string, panelistId: string) => {
+    if (!panelistId) return;
+
+    setAssigningPanelist(prev => ({ ...prev, [resumeId]: true }));
+
+    try {
+      // Check availability first
+      const isAvailable = await checkPanelistAvailability(Number(panelistId));
+      
+      if (!isAvailable) {
+        toast({
+          title: "Unavailable",
+          description: "This panelist is not available at the moment.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Assign panelist
+      const response = await fetch('http://localhost:5004/assign-panel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resume_id: resumeId,
+          panelist_id: Number(panelistId)
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Panelist assigned successfully:', result);
+        
+        // Update local state
+        setShortlistedResumes(prev => prev.map(resume => 
+          resume.id === resumeId 
+            ? { ...resume, assigned_panelist: panelistId }
+            : resume
+        ));
+
+        const assignedPanelist = availablePanelists.find(p => p.id.toString() === panelistId);
+        toast({
+          title: "Success!",
+          description: `Panelist ${assignedPanelist?.name} has been assigned successfully.`,
+        });
+
+        // Refresh interview sessions
+        fetchInterviewSessions();
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to assign panelist.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error assigning panelist:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to assign panelist. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAssigningPanelist(prev => ({ ...prev, [resumeId]: false }));
+    }
   };
 
   const mockScheduleInterview = (candidateName: string, requiredSkills: string[]) => {
@@ -264,7 +437,11 @@ const InterviewScheduler = () => {
     );
 
     if (matchingPanelists.length === 0) {
-      alert('No panelists available with the required skills');
+      toast({
+        title: "No Match",
+        description: "No panelists available with the required skills",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -287,7 +464,10 @@ const InterviewScheduler = () => {
     };
 
     setScheduledInterviews(prev => [...prev, interview]);
-    alert(`Interview scheduled with ${selectedPanelist.name} for ${candidateName}`);
+    toast({
+      title: "Success!",
+      description: `Interview scheduled with ${selectedPanelist.name} for ${candidateName}`,
+    });
   };
 
   return (
@@ -322,6 +502,14 @@ const InterviewScheduler = () => {
               >
                 <Download className="w-4 h-4" />
                 {loadingResumes ? 'Loading...' : 'Get Shortlisted Resumes'}
+              </Button>
+              <Button
+                onClick={fetchInterviewSessions}
+                disabled={loadingSessions}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+              >
+                <Calendar className="w-4 h-4" />
+                {loadingSessions ? 'Loading...' : 'Get Interview Sessions'}
               </Button>
             </div>
           </div>
@@ -419,7 +607,8 @@ const InterviewScheduler = () => {
                           <select
                             value={resume.assigned_panelist || ''}
                             onChange={(e) => assignPanelistToResume(resume.id, e.target.value)}
-                            className="text-sm border rounded px-2 py-1"
+                            disabled={assigningPanelist[resume.id]}
+                            className="text-sm border rounded px-2 py-1 bg-white"
                           >
                             <option value="">Select Panelist</option>
                             {availablePanelists.map((panelist) => (
@@ -428,6 +617,9 @@ const InterviewScheduler = () => {
                               </option>
                             ))}
                           </select>
+                          {assigningPanelist[resume.id] && (
+                            <span className="text-sm text-blue-600">Assigning...</span>
+                          )}
                         </div>
                         
                         {resume.assigned_panelist && (
@@ -435,6 +627,45 @@ const InterviewScheduler = () => {
                             Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Interview Sessions Display */}
+          {interviewSessions.length > 0 && (
+            <Card className="mb-4 border-purple-200 shadow-md">
+              <CardHeader className="bg-purple-50">
+                <CardTitle className="text-purple-800">Scheduled Interview Sessions ({interviewSessions.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="mt-4">
+                <div className="space-y-4">
+                  {interviewSessions.map((session) => (
+                    <div key={session.session_id} className="border rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-800">{session.candidate_name}</h3>
+                          <p className="text-sm text-gray-600">with {session.panelist_name}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          session.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {session.status}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">📅 {session.session_date}</p>
+                          <p className="text-sm text-gray-600">🕒 {session.session_start} - {session.session_end}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">📧 {session.panelist_email}</p>
+                          <p className="text-sm text-gray-600">📄 {session.resume_file}</p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -488,13 +719,22 @@ const InterviewScheduler = () => {
 
                 <div>
                   <Label className="text-sm font-medium">Skills/Expertise *</Label>
-                  <Input
-                    placeholder="Press Enter to add a skill..."
-                    value={newPanelist.skillInput}
-                    onChange={(e) => setNewPanelist(prev => ({ ...prev, skillInput: e.target.value }))}
-                    onKeyPress={(e) => e.key === 'Enter' && addSkillToPanelist()}
-                    className="mt-1"
-                  />
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      placeholder="Enter a skill and press Enter..."
+                      value={newPanelist.skillInput}
+                      onChange={(e) => setNewPanelist(prev => ({ ...prev, skillInput: e.target.value }))}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSkillToPanelist();
+                        }
+                      }}
+                    />
+                    <Button type="button" onClick={addSkillToPanelist} variant="outline">
+                      Add
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {newPanelist.skills.map((skill) => (
                       <span
@@ -531,26 +771,44 @@ const InterviewScheduler = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Time slots for selected days */}
+                {availabilityForm.selectedDays.length > 0 && (
                   <div>
-                    <Label className="text-sm font-medium">Start Time *</Label>
-                    <Input
-                      type="time"
-                      value={availabilityForm.startTime}
-                      onChange={(e) => setAvailabilityForm(prev => ({ ...prev, startTime: e.target.value }))}
-                      className="mt-1"
-                    />
+                    <Label className="text-sm font-medium">Time Slots for Selected Days</Label>
+                    <div className="space-y-3 mt-2">
+                      {availabilityForm.selectedDays.map((day) => {
+                        const timeSlot = availabilityForm.dayTimeSlots.find(slot => slot.day === day);
+                        return (
+                          <div key={day} className="border rounded-lg p-3 bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-sm">{day}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-xs text-gray-600">Start Time</Label>
+                                <Input
+                                  type="time"
+                                  value={timeSlot?.startTime || '09:00'}
+                                  onChange={(e) => updateDayTimeSlot(day, 'startTime', e.target.value)}
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-gray-600">End Time</Label>
+                                <Input
+                                  type="time"
+                                  value={timeSlot?.endTime || '17:00'}
+                                  onChange={(e) => updateDayTimeSlot(day, 'endTime', e.target.value)}
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">End Time *</Label>
-                    <Input
-                      type="time"
-                      value={availabilityForm.endTime}
-                      onChange={(e) => setAvailabilityForm(prev => ({ ...prev, endTime: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
+                )}
 
                 <div className="flex gap-2">
                   <Button 

@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { useToast } from "@/hooks/use-toast";
 
 interface JobRequirements {
   jobTitle: string;
@@ -41,6 +43,7 @@ const SmartResumeFilter = () => {
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [savingCandidates, setSavingCandidates] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   const addSkill = () => {
     if (skillInput.trim() && !jobRequirements.requiredSkills.includes(skillInput.trim())) {
@@ -78,7 +81,11 @@ const SmartResumeFilter = () => {
 
   const submitJobRequirements = async () => {
     if (!jobRequirements.jobTitle.trim() || jobRequirements.requiredSkills.length === 0) {
-      alert('Please provide job title and at least one required skill');
+      toast({
+        title: "Validation Error",
+        description: "Please provide job title and at least one required skill",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -92,7 +99,7 @@ const SmartResumeFilter = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:5000/add-requirement', {
+      const response = await fetch('http://localhost:5004/add-requirement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,14 +110,25 @@ const SmartResumeFilter = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Job requirements submitted successfully:', result);
-        alert('Job requirements submitted successfully!');
+        toast({
+          title: "Success!",
+          description: "Job requirements submitted successfully!",
+        });
       } else {
         console.error('Failed to submit job requirements:', response.statusText);
-        alert('Failed to submit job requirements. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to submit job requirements. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error submitting job requirements:', error);
-      alert('Error submitting job requirements. Please check your connection.');
+      toast({
+        title: "Network Error",
+        description: "Error submitting job requirements. Please check your connection.",
+        variant: "destructive"
+      });
     } finally {
       setSubmitLoading(false);
     }
@@ -133,7 +151,7 @@ const SmartResumeFilter = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:5000/shortlist-resume/save', {
+      const response = await fetch('http://localhost:5004/shortlist-resume/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,14 +162,25 @@ const SmartResumeFilter = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Candidate details saved successfully:', result);
-        alert('Candidate details saved successfully!');
+        toast({
+          title: "Success!",
+          description: "Candidate details saved successfully!",
+        });
       } else {
         console.error('Failed to save candidate details:', response.statusText);
-        alert('Failed to save candidate details. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to save candidate details. Please try again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error saving candidate details:', error);
-      alert('Error saving candidate details. Please check your connection.');
+      toast({
+        title: "Network Error",
+        description: "Error saving candidate details. Please check your connection.",
+        variant: "destructive"
+      });
     } finally {
       setSavingCandidates(prev => ({ ...prev, [analysis.id]: false }));
     }
@@ -169,13 +198,21 @@ const SmartResumeFilter = () => {
 
   const analyzeResumes = async () => {
     if (resumes.length === 0) {
-      alert('Please upload at least one resume');
+      toast({
+        title: "Validation Error",
+        description: "Please upload at least one resume",
+        variant: "destructive"
+      });
       return;
     }
     
     const jobTitleToUse = uploadJobTitle.trim() || jobRequirements.jobTitle.trim();
     if (!jobTitleToUse) {
-      alert('Please enter a job title');
+      toast({
+        title: "Validation Error",
+        description: "Please enter a job title",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -191,7 +228,7 @@ const SmartResumeFilter = () => {
 
         console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
         
-        const response = await fetch('http://localhost:5000/shortlist-resume', {
+        const response = await fetch('http://localhost:5004/shortlist-resume', {
           method: 'POST',
           body: formData
         });
@@ -215,15 +252,27 @@ const SmartResumeFilter = () => {
           newAnalyses.push(analysis);
         } else {
           console.error(`Failed to analyze ${file.name}:`, response.statusText);
-          alert(`Failed to analyze ${file.name}. Please try again.`);
+          toast({
+            title: "Analysis Error",
+            description: `Failed to analyze ${file.name}. Please try again.`,
+            variant: "destructive"
+          });
         }
       }
       
       setAnalyses(newAnalyses);
       console.log('All analyses completed:', newAnalyses);
+      toast({
+        title: "Success!",
+        description: `Successfully analyzed ${newAnalyses.length} resumes!`,
+      });
     } catch (error) {
       console.error('Error analyzing resumes:', error);
-      alert('Error analyzing resumes. Please check your connection and API server.');
+      toast({
+        title: "Network Error",
+        description: "Error analyzing resumes. Please check your connection and API server.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -300,13 +349,22 @@ const SmartResumeFilter = () => {
 
               <div>
                 <Label className="text-sm font-medium">Required Skills</Label>
-                <Input
-                  placeholder="Press Enter to add a skill..."
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addSkill()}
-                  className="mt-2"
-                />
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Enter a skill and press Enter..."
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSkill();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={addSkill} variant="outline">
+                    Add
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {jobRequirements.requiredSkills.map((skill) => (
                     <span
@@ -339,13 +397,22 @@ const SmartResumeFilter = () => {
 
               <div>
                 <Label className="text-sm font-medium">Tech Stack (Optional)</Label>
-                <Input
-                  placeholder="Press Enter to add technology..."
-                  value={techInput}
-                  onChange={(e) => setTechInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addTechStack()}
-                  className="mt-2"
-                />
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Enter technology and press Enter..."
+                    value={techInput}
+                    onChange={(e) => setTechInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTechStack();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={addTechStack} variant="outline">
+                    Add
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {jobRequirements.techStack.map((tech) => (
                     <span

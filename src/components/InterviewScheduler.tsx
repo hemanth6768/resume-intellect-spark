@@ -60,10 +60,7 @@ interface Panelist {
   email: string;
   skills: string[];
   availability: {
-    [key: string]: {
-      start_time: string;
-      end_time: string;
-    };
+    [key: string]: TimeSlot[];
   };
   created_at: string;
 }
@@ -133,27 +130,38 @@ const InterviewScheduler = () => {
   const dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   // Helper function to get available days from API response
-  const getAvailableDaysDisplay = (availability: { [key: string]: { start_time: string; end_time: string } }) => {
+  const getAvailableDaysDisplay = (availability: { [key: string]: TimeSlot[] }) => {
     if (!availability || typeof availability !== 'object') {
       return 'No availability set';
     }
     
-    const days = Object.keys(availability);
-    if (days.length === 0) {
+    const availableDays = Object.keys(availability).filter(day => 
+      availability[day] && Array.isArray(availability[day]) && availability[day].length > 0
+    );
+    
+    if (availableDays.length === 0) {
       return 'No availability set';
     }
     
-    return days.join(', ');
+    return availableDays.join(', ');
   };
 
   // Helper function to get time range from availability
-  const getTimeRangeDisplay = (availability: { [key: string]: { start_time: string; end_time: string } }) => {
+  const getTimeRangesDisplay = (availability: { [key: string]: TimeSlot[] }) => {
     if (!availability || typeof availability !== 'object') {
       return '';
     }
     
-    const timeRanges = Object.values(availability).map(slot => `${slot.start_time}-${slot.end_time}`);
-    return timeRanges.length > 0 ? timeRanges.join(', ') : '';
+    const timeRanges: string[] = [];
+    Object.keys(availability).forEach(day => {
+      if (availability[day] && Array.isArray(availability[day]) && availability[day].length > 0) {
+        availability[day].forEach(slot => {
+          timeRanges.push(`${day}: ${slot.start}-${slot.end}`);
+        });
+      }
+    });
+    
+    return timeRanges.length > 0 ? timeRanges.join(', ') : 'No time slots';
   };
 
   const addSkillToPanelist = () => {
@@ -453,19 +461,40 @@ const InterviewScheduler = () => {
       const availablePanelistsForSelectedDate: PanelistWithAvailability[] = [];
 
       for (const panelist of availablePanelists) {
-        try {
-          const response = await fetch(`http://localhost:5000/check-availability?panelist_id=${panelist.id}&date=${dateStr}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.available) {
-              availablePanelistsForSelectedDate.push({
-                ...panelist,
-                availableSlots: data.available_slots || []
-              });
+        // Get the day of the week from the date
+        const dayOfWeek = format(date, 'EEE'); // Get short day name (Mon, Tue, etc.)
+        
+        // Check if panelist has availability for this day
+        if (panelist.availability[dayOfWeek] && panelist.availability[dayOfWeek].length > 0) {
+          // Check availability for each time slot
+          const availableSlots = [];
+          
+          for (const slot of panelist.availability[dayOfWeek]) {
+            try {
+              const response = await fetch(
+                `http://localhost:5000/check-availability?panelist_id=${panelist.id}&date=${dateStr}&start_time=${slot.start}&end_time=${slot.end}`
+              );
+              if (response.ok) {
+                const data = await response.json();
+                console.log(`Availability check for panelist ${panelist.id}, slot ${slot.start}-${slot.end}:`, data);
+                if (data.available) {
+                  availableSlots.push({
+                    start_time: slot.start,
+                    end_time: slot.end
+                  });
+                }
+              }
+            } catch (error) {
+              console.error(`Error checking availability for panelist ${panelist.id}, slot ${slot.start}-${slot.end}:`, error);
             }
           }
-        } catch (error) {
-          console.error(`Error checking availability for panelist ${panelist.id}:`, error);
+          
+          if (availableSlots.length > 0) {
+            availablePanelistsForSelectedDate.push({
+              ...panelist,
+              availableSlots: availableSlots
+            });
+          }
         }
       }
 
@@ -670,11 +699,28 @@ const InterviewScheduler = () => {
                         </div>
                       </div>
                       <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700">Available:</p>
-                        <p className="text-xs text-gray-600">
-                          {getAvailableDaysDisplay(panelist.availability)} 
-                          {getTimeRangeDisplay(panelist.availability) && ` (${getTimeRangeDisplay(panelist.availability)})`}
+                        <p className="text-sm font-medium text-gray-700 mb-1">Available Days:</p>
+                        <p className="text-xs text-gray-600 mb-1">
+                          {getAvailableDaysDisplay(panelist.availability)}
                         </p>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Time Slots:</p>
+                        <div className="text-xs text-gray-600 space-y-1">
+                          {Object.keys(panelist.availability).map(day => {
+                            if (panelist.availability[day] && panelist.availability[day].length > 0) {
+                              return (
+                                <div key={day} className="flex flex-wrap gap-1">
+                                  <span className="font-medium">{day}:</span>
+                                  {panelist.availability[day].map((slot, index) => (
+                                    <span key={index} className="bg-blue-100 text-blue-800 px-1 py-0.5 rounded text-xs">
+                                      {slot.start}-{slot.end}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
                       </div>
                     </div>
                   ))}

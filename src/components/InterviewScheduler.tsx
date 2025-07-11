@@ -520,22 +520,29 @@ const InterviewScheduler = () => {
   };
 
   const assignPanelistToResume = async (resumeId: string, panelistId: string, timeSlot?: { start_time: string; end_time: string }) => {
-    if (!panelistId) return;
+    if (!panelistId || !selectedDates[resumeId]) return;
 
     setAssigningPanelist(prev => ({ ...prev, [resumeId]: true }));
 
     try {
+      const sessionDate = format(selectedDates[resumeId], 'yyyy-MM-dd');
+      
+      const requestBody = {
+        resume_id: Number(resumeId),
+        panelist_id: Number(panelistId),
+        session_date: sessionDate,
+        session_start: timeSlot?.start_time || "10:00",
+        session_end: timeSlot?.end_time || "11:00"
+      };
+
+      console.log('Assigning panelist with data:', requestBody);
+
       const response = await fetch('http://localhost:5000/assign-panel', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          resume_id: resumeId,
-          panelist_id: Number(panelistId),
-          date: selectedDates[resumeId] ? format(selectedDates[resumeId], 'yyyy-MM-dd') : undefined,
-          time_slot: timeSlot
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.ok) {
@@ -552,7 +559,7 @@ const InterviewScheduler = () => {
         const assignedPanelist = availablePanelists.find(p => p.id.toString() === panelistId);
         toast({
           title: "Success!",
-          description: `Panelist ${assignedPanelist?.name} has been assigned successfully.`,
+          description: `Interview scheduled with ${assignedPanelist?.name} on ${sessionDate} from ${requestBody.session_start} to ${requestBody.session_end}`,
         });
 
         // Clear the date selection and available panelists for this resume
@@ -571,9 +578,10 @@ const InterviewScheduler = () => {
         fetchInterviewSessions();
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Failed to assign panelist:', response.status, errorData);
         toast({
           title: "Error",
-          description: errorData.message || "Failed to assign panelist.",
+          description: errorData.message || "Failed to assign panelist and schedule interview.",
           variant: "destructive"
         });
       }
@@ -671,6 +679,7 @@ const InterviewScheduler = () => {
                 {loadingSessions ? 'Loading...' : 'Get Interview Sessions'}
               </Button>
             </div>
+
           </div>
 
           {/* Available Panelists Display */}

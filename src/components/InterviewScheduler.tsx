@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar as CalendarComponent } from './ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface TimeSlot {
   start: string;
@@ -187,7 +188,7 @@ const InterviewScheduler = () => {
     setDeletingPanelist(prev => ({ ...prev, [panelistId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/panelists/${panelistId}`, {
+      const response = await fetch(API_ENDPOINTS.DELETE_PANELIST(panelistId), {
         method: 'DELETE',
       });
 
@@ -221,7 +222,7 @@ const InterviewScheduler = () => {
     setDeletingResume(prev => ({ ...prev, [resumeId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/shortlisted-resumes/${resumeId}`, {
+      const response = await fetch(API_ENDPOINTS.DELETE_RESUME(resumeId), {
         method: 'DELETE',
       });
 
@@ -255,7 +256,7 @@ const InterviewScheduler = () => {
     setDeletingSession(prev => ({ ...prev, [sessionId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:5000/interview-sessions/${sessionId}`, {
+      const response = await fetch(API_ENDPOINTS.DELETE_SESSION(sessionId), {
         method: 'DELETE',
       });
 
@@ -417,7 +418,7 @@ const InterviewScheduler = () => {
 
       console.log('Sending panelist data to API:', panelistData);
 
-      const response = await fetch('http://localhost:5000/add-panelist', {
+      const response = await fetch(API_ENDPOINTS.ADD_PANELIST, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -481,7 +482,7 @@ const InterviewScheduler = () => {
   const fetchPanelists = async () => {
     setLoadingPanelists(true);
     try {
-      const response = await fetch('http://localhost:5000/panelists');
+      const response = await fetch(API_ENDPOINTS.PANELISTS);
       if (response.ok) {
         const data = await response.json();
         setAvailablePanelists(data);
@@ -513,7 +514,7 @@ const InterviewScheduler = () => {
   const fetchShortlistedResumes = async () => {
     setLoadingResumes(true);
     try {
-      const response = await fetch('http://localhost:5000/shortlist-resume/list');
+      const response = await fetch(API_ENDPOINTS.SHORTLISTED_RESUMES);
       if (response.ok) {
         const data = await response.json();
         setShortlistedResumes(data);
@@ -545,7 +546,7 @@ const InterviewScheduler = () => {
   const fetchInterviewSessions = async () => {
     setLoadingSessions(true);
     try {
-      const response = await fetch('http://localhost:5000/interview-sessions');
+      const response = await fetch(API_ENDPOINTS.INTERVIEW_SESSIONS);
       if (response.ok) {
         const data = await response.json();
         setInterviewSessions(data);
@@ -593,7 +594,7 @@ const InterviewScheduler = () => {
           for (const slot of panelist.availability[dayOfWeek]) {
             try {
               const response = await fetch(
-                `http://localhost:5000/check-availability?panelist_id=${panelist.id}&date=${dateStr}&start_time=${slot.start}&end_time=${slot.end}`
+                API_ENDPOINTS.CHECK_AVAILABILITY(panelist.id, dateStr, slot.start, slot.end)
               );
               if (response.ok) {
                 const data = await response.json();
@@ -658,7 +659,7 @@ const InterviewScheduler = () => {
 
       console.log('Assigning panelist with data:', requestBody);
 
-      const response = await fetch('http://localhost:5000/assign-panel', {
+      const response = await fetch(API_ENDPOINTS.ASSIGN_PANEL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -769,45 +770,45 @@ const InterviewScheduler = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-2 sm:py-8 sm:px-4">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="text-center">
-          <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-2 px-2 sm:py-8 sm:px-4">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-8">
+        <div className="text-center px-2">
+          <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-gray-800 mb-2">
             📅 Interview Panel Scheduler
           </h1>
-          <p className="text-base sm:text-lg text-gray-600 px-2">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600">
             Manage panel availability and auto-schedule interviews with shortlisted candidates
           </p>
         </div>
 
         {/* Data Management Section */}
         <Card className="border-slate-200 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl text-gray-800">Data Management</CardTitle>
-              <div className="flex flex-wrap gap-2">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="text-lg sm:text-xl text-gray-800">Data Management</CardTitle>
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
                 <Button
                   onClick={fetchPanelists}
                   disabled={loadingPanelists}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
-                  <UserCheck className="w-4 h-4" />
+                  <UserCheck className="w-3 h-3 sm:w-4 sm:h-4" />
                   {loadingPanelists ? 'Loading...' : 'Load Panelists'}
                 </Button>
                 <Button
                   onClick={fetchShortlistedResumes}
                   disabled={loadingResumes}
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-sm"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                   {loadingResumes ? 'Loading...' : 'Load Resumes'}
                 </Button>
                 <Button
                   onClick={fetchInterviewSessions}
                   disabled={loadingSessions}
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-sm"
+                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                   {loadingSessions ? 'Loading...' : 'Load Sessions'}
                 </Button>
               </div>
@@ -818,30 +819,30 @@ const InterviewScheduler = () => {
         {/* Available Panelists Display */}
         {availablePanelists.length > 0 && (
           <Card className="border-blue-200 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-blue-800">Available Panelists ({filteredPanelists.length})</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-gray-500" />
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <CardTitle className="text-blue-800 text-lg sm:text-xl">Available Panelists ({filteredPanelists.length})</CardTitle>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
                   <Input
                     placeholder="Search panelists..."
                     value={panelistSearch}
                     onChange={(e) => setPanelistSearch(e.target.value)}
-                    className="w-64"
+                    className="text-sm w-full sm:w-64"
                   />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <CardContent className="p-3 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredPanelists.map((panelist) => (
-                  <div key={panelist.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                  <div key={panelist.id} className="border border-gray-200 rounded-xl p-3 sm:p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 text-lg">{panelist.name}</h3>
-                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                          <Mail className="w-3 h-3" />
-                          {panelist.email}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{panelist.name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 mt-1 truncate">
+                          <Mail className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{panelist.email}</span>
                         </p>
                       </div>
                       <Button
@@ -849,15 +850,15 @@ const InterviewScheduler = () => {
                         disabled={deletingPanelist[panelist.id]}
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 ml-2 flex-shrink-0"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     </div>
                     
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Skills:</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Skills:</p>
                         <div className="flex flex-wrap gap-1">
                           {(panelist.skills || []).map((skill) => (
                             <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
@@ -868,11 +869,11 @@ const InterviewScheduler = () => {
                       </div>
                       
                       <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Available Days:</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Available Days:</p>
                         <p className="text-xs text-gray-600 mb-2">
                           {getAvailableDaysDisplay(panelist.availability)}
                         </p>
-                        <div className="text-xs text-gray-600 space-y-1">
+                        <div className="text-xs text-gray-600 space-y-1 max-h-20 overflow-y-auto">
                           {Object.keys(panelist.availability).map(day => {
                             if (panelist.availability[day] && panelist.availability[day].length > 0) {
                               return (
@@ -903,30 +904,30 @@ const InterviewScheduler = () => {
         {/* Shortlisted Resumes Display */}
         {shortlistedResumes.length > 0 && (
           <Card className="border-green-200 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-green-800">Shortlisted Resumes ({filteredResumes.length})</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4 text-gray-500" />
+            <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <CardTitle className="text-green-800 text-lg sm:text-xl">Shortlisted Resumes ({filteredResumes.length})</CardTitle>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
                   <Input
                     placeholder="Search resumes..."
                     value={resumeSearch}
                     onChange={(e) => setResumeSearch(e.target.value)}
-                    className="w-64"
+                    className="text-sm w-full sm:w-64"
                   />
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-6">
+            <CardContent className="p-3 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 {filteredResumes.map((resume) => (
-                  <div key={resume.id} className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-800 text-lg">{resume.candidate_name}</h3>
+                  <div key={resume.id} className="border border-gray-200 rounded-xl p-4 sm:p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{resume.candidate_name}</h3>
                         <p className="text-sm text-gray-600">{resume.experience} years experience</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <Button
                           onClick={() => deleteResume(resume.id)}
                           disabled={deletingResume[resume.id]}
@@ -934,7 +935,7 @@ const InterviewScheduler = () => {
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                         <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
                           Shortlisted
@@ -942,7 +943,7 @@ const InterviewScheduler = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4">
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Matched Skills:</p>
                         <div className="flex flex-wrap gap-1">
@@ -974,45 +975,47 @@ const InterviewScheduler = () => {
                       {!resume.assigned_panelist && (
                         <>
                           {/* Step 1: Select Date */}
-                          <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                             <label className="text-sm font-medium text-gray-700 min-w-fit">1. Select Interview Date:</label>
-                            <Popover>
-                              <PopoverTrigger asChild>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full sm:w-[240px] justify-start text-left font-normal text-sm",
+                                      !selectedDates[resume.id] && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <CalendarComponent
+                                    mode="single"
+                                    selected={selectedDates[resume.id]}
+                                    onSelect={(date) => {
+                                      if (date) {
+                                        setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
+                                      }
+                                    }}
+                                    disabled={(date) => date < new Date()}
+                                    initialFocus
+                                    className="p-3 pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              {selectedDates[resume.id] && (
                                 <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "w-[240px] justify-start text-left font-normal",
-                                    !selectedDates[resume.id] && "text-muted-foreground"
-                                  )}
+                                  onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
+                                  disabled={checkingAvailability[resume.id]}
+                                  className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm w-full sm:w-auto"
                                 >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
+                                  {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
                                 </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <CalendarComponent
-                                  mode="single"
-                                  selected={selectedDates[resume.id]}
-                                  onSelect={(date) => {
-                                    if (date) {
-                                      setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
-                                    }
-                                  }}
-                                  disabled={(date) => date < new Date()}
-                                  initialFocus
-                                  className="p-3 pointer-events-auto"
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            {selectedDates[resume.id] && (
-                              <Button
-                                onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
-                                disabled={checkingAvailability[resume.id]}
-                                className="bg-blue-600 hover:bg-blue-700"
-                              >
-                                {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
-                              </Button>
-                            )}
+                              )}
+                            </div>
                           </div>
 
                           {/* Step 2: Show Available Panelists */}
@@ -1021,11 +1024,11 @@ const InterviewScheduler = () => {
                               <p className="text-sm font-medium text-gray-700 mb-3">2. Available Panelists:</p>
                               <div className="space-y-3">
                                 {availablePanelistsForDate[resume.id].map((panelist) => (
-                                  <div key={panelist.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        <p className="font-medium text-sm">{panelist.name}</p>
-                                        <p className="text-xs text-gray-600">{panelist.email}</p>
+                                  <div key={panelist.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50">
+                                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">{panelist.name}</p>
+                                        <p className="text-xs text-gray-600 truncate">{panelist.email}</p>
                                         <div className="flex flex-wrap gap-1 mt-2">
                                           {(panelist.skills || []).slice(0, 3).map((skill) => (
                                             <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
@@ -1046,12 +1049,12 @@ const InterviewScheduler = () => {
                                           </div>
                                         )}
                                       </div>
-                                      <div className="ml-4">
+                                      <div className="flex-shrink-0 w-full sm:w-auto">
                                         <Button
                                           size="sm"
                                           onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), panelist.availableSlots?.[0])}
                                           disabled={assigningPanelist[resume.id]}
-                                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+                                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-xs sm:text-sm w-full sm:w-auto"
                                         >
                                           {assigningPanelist[resume.id] ? 'Assigning...' : 'Assign'}
                                         </Button>
@@ -1085,19 +1088,19 @@ const InterviewScheduler = () => {
         {/* Interview Sessions Display */}
         {interviewSessions.length > 0 && (
           <Card className="border-purple-200 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b">
-              <CardTitle className="text-purple-800">Scheduled Interview Sessions ({interviewSessions.length})</CardTitle>
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b p-3 sm:p-6">
+              <CardTitle className="text-purple-800 text-lg sm:text-xl">Scheduled Interview Sessions ({interviewSessions.length})</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-6">
               <div className="space-y-4">
                 {interviewSessions.map((session) => (
-                  <div key={session.session_id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-800 text-lg">{session.candidate_name}</h3>
-                        <p className="text-sm text-gray-600">with {session.panelist_name}</p>
+                  <div key={session.session_id} className="border border-gray-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{session.candidate_name}</h3>
+                        <p className="text-sm text-gray-600 truncate">with {session.panelist_name}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <Button
                           onClick={() => deleteInterviewSession(session.session_id)}
                           disabled={deletingSession[session.session_id]}
@@ -1105,7 +1108,7 @@ const InterviewScheduler = () => {
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           session.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
@@ -1118,22 +1121,22 @@ const InterviewScheduler = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div className="space-y-2">
                         <p className="text-gray-600 flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-blue-600" />
-                          {session.session_date}
+                          <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <span className="truncate">{session.session_date}</span>
                         </p>
                         <p className="text-gray-600 flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-green-600" />
-                          {session.session_start} - {session.session_end}
+                          <Clock className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <span className="truncate">{session.session_start} - {session.session_end}</span>
                         </p>
                       </div>
                       <div className="space-y-2">
                         <p className="text-gray-600 flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-purple-600" />
-                          {session.panelist_email}
+                          <Mail className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <span className="truncate">{session.panelist_email}</span>
                         </p>
                         <p className="text-gray-600 flex items-center gap-2">
-                          <Users className="w-4 h-4 text-orange-600" />
-                          {session.resume_file}
+                          <Users className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                          <span className="truncate">{session.resume_file}</span>
                         </p>
                       </div>
                     </div>
@@ -1146,14 +1149,14 @@ const InterviewScheduler = () => {
 
         {/* Panel Management Section */}
         <Card className="border-indigo-200 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-indigo-800">Interview Panel Management</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="text-indigo-800 text-lg sm:text-xl">Interview Panel Management</CardTitle>
               <Button
                 onClick={() => setIsAddingPanelist(true)}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                 Add Panelist
               </Button>
             </div>
@@ -1161,9 +1164,9 @@ const InterviewScheduler = () => {
 
           {/* Add Panelist Form */}
           {isAddingPanelist && (
-            <CardContent className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div className="space-y-6 py-6">
-                <h3 className="text-lg font-semibold text-blue-800">Add New Panelist</h3>
+            <CardContent className="border-b bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
+                <h3 className="text-base sm:text-lg font-semibold text-blue-800">Add New Panelist</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1172,7 +1175,7 @@ const InterviewScheduler = () => {
                       placeholder="Enter panelist name"
                       value={newPanelist.name}
                       onChange={(e) => setNewPanelist(prev => ({ ...prev, name: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 text-sm"
                     />
                   </div>
                   <div>
@@ -1182,7 +1185,7 @@ const InterviewScheduler = () => {
                       placeholder="Enter email address"
                       value={newPanelist.email}
                       onChange={(e) => setNewPanelist(prev => ({ ...prev, email: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 text-sm"
                     />
                   </div>
                 </div>
@@ -1200,8 +1203,9 @@ const InterviewScheduler = () => {
                           addSkillToPanelist();
                         }
                       }}
+                      className="text-sm"
                     />
-                    <Button type="button" onClick={addSkillToPanelist} variant="outline">
+                    <Button type="button" onClick={addSkillToPanelist} variant="outline" className="text-xs sm:text-sm">
                       Add
                     </Button>
                   </div>
@@ -1226,7 +1230,7 @@ const InterviewScheduler = () => {
                   <div className="space-y-3 mt-2">
                     {availabilityForm.dayAvailabilities.map((day, dayIndex) => (
                       <div key={day.day} className="border rounded-lg p-3 bg-white shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
                           <div className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -1242,7 +1246,7 @@ const InterviewScheduler = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => addTimeSlot(dayIndex)}
-                              className="text-xs"
+                              className="text-xs w-full sm:w-auto"
                             >
                               <Plus className="w-3 h-3 mr-1" />
                               Add Time Slot
@@ -1252,14 +1256,14 @@ const InterviewScheduler = () => {
                         {day.selected && (
                           <div className="space-y-2 mt-2">
                             {day.timeSlots.map((slot, slotIndex) => (
-                              <div key={slotIndex} className="grid grid-cols-5 gap-2 items-center">
+                              <div key={slotIndex} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
                                 <div>
                                   <Label className="text-xs text-gray-600">Start Time</Label>
                                   <Input
                                     type="time"
                                     value={slot.start}
                                     onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'start', e.target.value)}
-                                    className="mt-1"
+                                    className="mt-1 text-sm"
                                   />
                                 </div>
                                 <div>
@@ -1268,20 +1272,20 @@ const InterviewScheduler = () => {
                                     type="time"
                                     value={slot.end}
                                     onChange={(e) => updateTimeSlot(dayIndex, slotIndex, 'end', e.target.value)}
-                                    className="mt-1"
+                                    className="mt-1 text-sm"
                                   />
                                 </div>
-                                <div className="col-span-2 text-xs text-gray-600 pt-6">
+                                <div className="col-span-1 sm:col-span-2 text-xs text-gray-600 pt-2 sm:pt-6">
                                   {slot.start} - {slot.end}
                                 </div>
-                                <div className="pt-6">
+                                <div className="pt-0 sm:pt-6">
                                   {day.timeSlots.length > 1 && (
                                     <Button
                                       type="button"
                                       size="sm"
                                       variant="outline"
                                       onClick={() => removeTimeSlot(dayIndex, slotIndex)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs w-full sm:w-auto"
                                     >
                                       <Trash2 className="w-3 h-3" />
                                     </Button>
@@ -1296,11 +1300,11 @@ const InterviewScheduler = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button 
                     onClick={addPanelist} 
                     disabled={addingPanelist}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm"
                   >
                     {addingPanelist ? 'Adding...' : 'Add Panelist'}
                   </Button>
@@ -1308,6 +1312,7 @@ const InterviewScheduler = () => {
                     variant="outline"
                     onClick={() => setIsAddingPanelist(false)}
                     disabled={addingPanelist}
+                    className="text-xs sm:text-sm"
                   >
                     Cancel
                   </Button>
@@ -1319,21 +1324,21 @@ const InterviewScheduler = () => {
 
         {/* Mock Scheduling Section */}
         <Card className="border-green-200 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
-            <CardTitle className="text-green-800">Auto-Schedule Interview (Demo)</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b p-3 sm:p-6">
+            <CardTitle className="text-green-800 text-lg sm:text-xl">Auto-Schedule Interview (Demo)</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="flex flex-wrap gap-4">
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
               <Button
                 onClick={() => mockScheduleInterview('John Doe', ['Python', 'React'])}
-                className="bg-green-600 hover:bg-green-700 shadow-sm"
+                className="bg-green-600 hover:bg-green-700 shadow-sm text-xs sm:text-sm"
                 disabled={panelists.length === 0}
               >
                 Schedule for John Doe (Python, React)
               </Button>
               <Button
                 onClick={() => mockScheduleInterview('Jane Smith', ['C#', 'Azure'])}
-                className="bg-green-600 hover:bg-green-700 shadow-sm"
+                className="bg-green-600 hover:bg-green-700 shadow-sm text-xs sm:text-sm"
                 disabled={panelists.length === 0}
               >
                 Schedule for Jane Smith (C#, Azure)
@@ -1348,42 +1353,44 @@ const InterviewScheduler = () => {
         {/* Scheduled Interviews */}
         {scheduledInterviews.length > 0 && (
           <Card className="border-orange-200 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100 border-b">
-              <CardTitle className="text-orange-800">Scheduled Interviews ({scheduledInterviews.length})</CardTitle>
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100 border-b p-3 sm:p-6">
+              <CardTitle className="text-orange-800 text-lg sm:text-xl">Scheduled Interviews ({scheduledInterviews.length})</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-6">
               <div className="space-y-4">
                 {scheduledInterviews.map((interview) => (
-                  <div key={interview.id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-2">
-                        <h3 className="font-semibold text-gray-800 text-lg">
+                  <div key={interview.id} className="border border-gray-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">
                           {interview.candidateName} → {interview.panelistName}
                         </h3>
-                        <div className="flex items-center gap-6 text-sm text-gray-600">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {interview.date}
+                            <Calendar className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{interview.date}</span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {interview.time}
+                            <Clock className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{interview.time}</span>
                           </span>
                           <span className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {interview.panelistEmail}
+                            <Mail className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{interview.panelistEmail}</span>
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                           <span className="text-sm text-gray-600">Skills:</span>
-                          {interview.candidateSkills.map((skill) => (
-                            <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                              {skill}
-                            </span>
-                          ))}
+                          <div className="flex flex-wrap gap-1">
+                            {interview.candidateSkills.map((skill) => (
+                              <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-col items-start sm:items-end gap-2 flex-shrink-0">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           interview.status === 'scheduled' ? 'bg-green-100 text-green-800' :
                           interview.status === 'completed' ? 'bg-blue-100 text-blue-800' :

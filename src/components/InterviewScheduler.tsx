@@ -579,11 +579,21 @@ const InterviewScheduler = () => {
       } else {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error('Failed to assign panelist:', response.status, errorData);
-        toast({
-          title: "Error",
-          description: errorData.message || "Failed to assign panelist and schedule interview.",
-          variant: "destructive"
-        });
+        
+        // Handle specific error for already assigned resume
+        if (errorData.error === "This resume is already assigned to a panelist.") {
+          toast({
+            title: "Already Assigned",
+            description: "This resume is already assigned to a panelist.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: errorData.message || errorData.error || "Failed to assign panelist and schedule interview.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
       console.error('Error assigning panelist:', error);
@@ -839,9 +849,9 @@ const InterviewScheduler = () => {
                                 <p className="text-sm font-medium text-gray-700 mb-2">2. Available Panelists:</p>
                                 <div className="space-y-2">
                                   {availablePanelistsForDate[resume.id].map((panelist) => (
-                                    <div key={panelist.id} className="border rounded p-2 bg-gray-50">
+                                    <div key={panelist.id} className="border rounded p-3 bg-gray-50">
                                       <div className="flex items-center justify-between">
-                                        <div>
+                                        <div className="flex-1">
                                           <p className="font-medium text-sm">{panelist.name}</p>
                                           <p className="text-xs text-gray-600">{panelist.email}</p>
                                           <div className="flex flex-wrap gap-1 mt-1">
@@ -851,30 +861,28 @@ const InterviewScheduler = () => {
                                               </span>
                                             ))}
                                           </div>
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                          {panelist.availableSlots && panelist.availableSlots.length > 0 ? (
-                                            panelist.availableSlots.map((slot, index) => (
-                                              <Button
-                                                key={index}
-                                                size="sm"
-                                                onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), slot)}
-                                                disabled={assigningPanelist[resume.id]}
-                                                className="text-xs bg-green-600 hover:bg-green-700"
-                                              >
-                                                {slot.start_time} - {slot.end_time}
-                                              </Button>
-                                            ))
-                                          ) : (
-                                            <Button
-                                              size="sm"
-                                              onClick={() => assignPanelistToResume(resume.id, panelist.id.toString())}
-                                              disabled={assigningPanelist[resume.id]}
-                                              className="text-xs bg-green-600 hover:bg-green-700"
-                                            >
-                                              Assign
-                                            </Button>
+                                          {panelist.availableSlots && panelist.availableSlots.length > 0 && (
+                                            <div className="mt-2">
+                                              <p className="text-xs text-gray-600 mb-1">Available Time Slots:</p>
+                                              <div className="flex flex-wrap gap-1">
+                                                {panelist.availableSlots.map((slot, index) => (
+                                                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                                    {slot.start_time} - {slot.end_time}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
                                           )}
+                                        </div>
+                                        <div className="ml-4">
+                                          <Button
+                                            size="sm"
+                                            onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), panelist.availableSlots?.[0])}
+                                            disabled={assigningPanelist[resume.id]}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+                                          >
+                                            {assigningPanelist[resume.id] ? 'Assigning...' : 'Assign'}
+                                          </Button>
                                         </div>
                                       </div>
                                     </div>

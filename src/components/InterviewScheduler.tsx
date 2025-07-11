@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon, Trash2 } from 'lucide-react';
+import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon, Trash2, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -105,6 +105,11 @@ const InterviewScheduler = () => {
   const [selectedDates, setSelectedDates] = useState<Record<string, Date>>({});
   const [availablePanelistsForDate, setAvailablePanelistsForDate] = useState<Record<string, PanelistWithAvailability[]>>({});
   const [checkingAvailability, setCheckingAvailability] = useState<Record<string, boolean>>({});
+  const [deletingPanelist, setDeletingPanelist] = useState<Record<number, boolean>>({});
+  const [deletingResume, setDeletingResume] = useState<Record<string, boolean>>({});
+  const [deletingSession, setDeletingSession] = useState<Record<number, boolean>>({});
+  const [panelistSearch, setPanelistSearch] = useState('');
+  const [resumeSearch, setResumeSearch] = useState('');
   const { toast } = useToast();
   
   const [newPanelist, setNewPanelist] = useState({
@@ -162,6 +167,122 @@ const InterviewScheduler = () => {
     });
     
     return timeRanges.length > 0 ? timeRanges.join(', ') : 'No time slots';
+  };
+
+  // Filter functions for search
+  const filteredPanelists = availablePanelists.filter(panelist =>
+    panelist.name.toLowerCase().includes(panelistSearch.toLowerCase()) ||
+    panelist.email.toLowerCase().includes(panelistSearch.toLowerCase()) ||
+    panelist.skills.some(skill => skill.toLowerCase().includes(panelistSearch.toLowerCase()))
+  );
+
+  const filteredResumes = shortlistedResumes.filter(resume =>
+    resume.candidate_name.toLowerCase().includes(resumeSearch.toLowerCase()) ||
+    resume.matched_skills.some(skill => skill.toLowerCase().includes(resumeSearch.toLowerCase())) ||
+    resume.tech_stack.some(tech => tech.toLowerCase().includes(resumeSearch.toLowerCase()))
+  );
+
+  // Delete functions
+  const deletePanelist = async (panelistId: number) => {
+    setDeletingPanelist(prev => ({ ...prev, [panelistId]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:5000/panelists/${panelistId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setAvailablePanelists(prev => prev.filter(p => p.id !== panelistId));
+        toast({
+          title: "Success!",
+          description: "Panelist deleted successfully.",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to delete panelist.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting panelist:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to delete panelist. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingPanelist(prev => ({ ...prev, [panelistId]: false }));
+    }
+  };
+
+  const deleteResume = async (resumeId: string) => {
+    setDeletingResume(prev => ({ ...prev, [resumeId]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:5000/shortlisted-resumes/${resumeId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setShortlistedResumes(prev => prev.filter(r => r.id !== resumeId));
+        toast({
+          title: "Success!",
+          description: "Resume deleted successfully.",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to delete resume.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to delete resume. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingResume(prev => ({ ...prev, [resumeId]: false }));
+    }
+  };
+
+  const deleteInterviewSession = async (sessionId: number) => {
+    setDeletingSession(prev => ({ ...prev, [sessionId]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:5000/interview-sessions/${sessionId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setInterviewSessions(prev => prev.filter(s => s.session_id !== sessionId));
+        toast({
+          title: "Success!",
+          description: "Interview session deleted successfully.",
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to delete interview session.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting interview session:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to delete interview session. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingSession(prev => ({ ...prev, [sessionId]: false }));
+    }
   };
 
   const addSkillToPanelist = () => {
@@ -649,8 +770,8 @@ const InterviewScheduler = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-2 sm:py-8 sm:px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-6 sm:mb-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="text-center">
           <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 mb-2">
             📅 Interview Panel Scheduler
           </h1>
@@ -660,80 +781,110 @@ const InterviewScheduler = () => {
         </div>
 
         {/* Data Management Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Data Management</h2>
-            <div className="flex gap-2">
-              <Button
-                onClick={fetchPanelists}
-                disabled={loadingPanelists}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <UserCheck className="w-4 h-4" />
-                {loadingPanelists ? 'Loading...' : 'Check Panelists'}
-              </Button>
-              <Button
-                onClick={fetchShortlistedResumes}
-                disabled={loadingResumes}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                <Download className="w-4 h-4" />
-                {loadingResumes ? 'Loading...' : 'Get Shortlisted Resumes'}
-              </Button>
-              <Button
-                onClick={fetchInterviewSessions}
-                disabled={loadingSessions}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-              >
-                <Calendar className="w-4 h-4" />
-                {loadingSessions ? 'Loading...' : 'Get Interview Sessions'}
-              </Button>
+        <Card className="border-slate-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl text-gray-800">Data Management</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={fetchPanelists}
+                  disabled={loadingPanelists}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  {loadingPanelists ? 'Loading...' : 'Load Panelists'}
+                </Button>
+                <Button
+                  onClick={fetchShortlistedResumes}
+                  disabled={loadingResumes}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  {loadingResumes ? 'Loading...' : 'Load Resumes'}
+                </Button>
+                <Button
+                  onClick={fetchInterviewSessions}
+                  disabled={loadingSessions}
+                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-sm"
+                >
+                  <Calendar className="w-4 h-4" />
+                  {loadingSessions ? 'Loading...' : 'Load Sessions'}
+                </Button>
+              </div>
             </div>
+          </CardHeader>
+        </Card>
 
-          </div>
-
-          {/* Available Panelists Display */}
-          {availablePanelists.length > 0 && (
-            <Card className="mb-4 border-blue-200 shadow-md">
-              <CardHeader className="bg-blue-50">
-                <CardTitle className="text-blue-800">Available Panelists ({availablePanelists.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {availablePanelists.map((panelist) => (
-                    <div key={panelist.id} className="border rounded-lg p-3 bg-white">
-                      <h3 className="font-semibold text-gray-800">{panelist.name}</h3>
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {panelist.email}
-                      </p>
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Skills:</p>
+        {/* Available Panelists Display */}
+        {availablePanelists.length > 0 && (
+          <Card className="border-blue-200 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-blue-800">Available Panelists ({filteredPanelists.length})</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-500" />
+                  <Input
+                    placeholder="Search panelists..."
+                    value={panelistSearch}
+                    onChange={(e) => setPanelistSearch(e.target.value)}
+                    className="w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPanelists.map((panelist) => (
+                  <div key={panelist.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800 text-lg">{panelist.name}</h3>
+                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                          <Mail className="w-3 h-3" />
+                          {panelist.email}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => deletePanelist(panelist.id)}
+                        disabled={deletingPanelist[panelist.id]}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Skills:</p>
                         <div className="flex flex-wrap gap-1">
                           {(panelist.skills || []).map((skill) => (
-                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
                               {skill}
                             </span>
                           ))}
                         </div>
                       </div>
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Available Days:</p>
-                        <p className="text-xs text-gray-600 mb-1">
+                      
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Available Days:</p>
+                        <p className="text-xs text-gray-600 mb-2">
                           {getAvailableDaysDisplay(panelist.availability)}
                         </p>
-                        <p className="text-sm font-medium text-gray-700 mb-1">Time Slots:</p>
                         <div className="text-xs text-gray-600 space-y-1">
                           {Object.keys(panelist.availability).map(day => {
                             if (panelist.availability[day] && panelist.availability[day].length > 0) {
                               return (
-                                <div key={day} className="flex flex-wrap gap-1">
-                                  <span className="font-medium">{day}:</span>
-                                  {panelist.availability[day].map((slot, index) => (
-                                    <span key={index} className="bg-blue-100 text-blue-800 px-1 py-0.5 rounded text-xs">
-                                      {slot.start}-{slot.end}
-                                    </span>
-                                  ))}
+                                <div key={day} className="flex flex-wrap gap-1 items-center">
+                                  <span className="font-medium text-gray-700 min-w-[35px]">{day}:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {panelist.availability[day].map((slot, index) => (
+                                      <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                        {slot.start}-{slot.end}
+                                      </span>
+                                    ))}
+                                  </div>
                                 </div>
                               );
                             }
@@ -742,234 +893,278 @@ const InterviewScheduler = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Shortlisted Resumes Display */}
-          {shortlistedResumes.length > 0 && (
-            <Card className="mb-4 border-green-200 shadow-md">
-              <CardHeader className="bg-green-50">
-                <CardTitle className="text-green-800">Shortlisted Resumes ({shortlistedResumes.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="mt-4">
-                <div className="space-y-4">
-                  {shortlistedResumes.map((resume) => (
-                    <div key={resume.id} className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-800">{resume.candidate_name}</h3>
-                          <p className="text-sm text-gray-600">{resume.experience} years experience</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                            Shortlisted
-                          </span>
+        {/* Shortlisted Resumes Display */}
+        {shortlistedResumes.length > 0 && (
+          <Card className="border-green-200 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-green-800">Shortlisted Resumes ({filteredResumes.length})</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-500" />
+                  <Input
+                    placeholder="Search resumes..."
+                    value={resumeSearch}
+                    onChange={(e) => setResumeSearch(e.target.value)}
+                    className="w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                {filteredResumes.map((resume) => (
+                  <div key={resume.id} className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-800 text-lg">{resume.candidate_name}</h3>
+                        <p className="text-sm text-gray-600">{resume.experience} years experience</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => deleteResume(resume.id)}
+                          disabled={deletingResume[resume.id]}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                          Shortlisted
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Matched Skills:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(resume.matched_skills || []).map((skill) => (
+                            <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 mb-1">Matched Skills:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(resume.matched_skills || []).map((skill) => (
-                              <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Tech Stack:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(resume.tech_stack || []).slice(0, 4).map((tech) => (
+                            <span key={tech} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {tech}
+                            </span>
+                          ))}
+                          {resume.tech_stack && resume.tech_stack.length > 4 && (
+                            <span className="text-xs text-gray-500 px-2 py-1">+{resume.tech_stack.length - 4} more</span>
+                          )}
                         </div>
-                        
-                        <div>
-                          <p className="text-sm font-medium text-gray-700 mb-1">Tech Stack:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(resume.tech_stack || []).slice(0, 3).map((tech) => (
-                              <span key={tech} className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
-                                {tech}
-                              </span>
-                            ))}
-                            {resume.tech_stack && resume.tech_stack.length > 3 && (
-                              <span className="text-xs text-gray-500">+{resume.tech_stack.length - 3} more</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Assignment Workflow */}
-                      <div className="pt-3 border-t space-y-3">
-                        {!resume.assigned_panelist && (
-                          <>
-                            {/* Step 1: Select Date */}
-                            <div className="flex items-center gap-2">
-                              <label className="text-sm font-medium text-gray-700">1. Select Interview Date:</label>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "w-[240px] justify-start text-left font-normal",
-                                      !selectedDates[resume.id] && "text-muted-foreground"
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <CalendarComponent
-                                    mode="single"
-                                    selected={selectedDates[resume.id]}
-                                    onSelect={(date) => {
-                                      if (date) {
-                                        setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
-                                      }
-                                    }}
-                                    disabled={(date) => date < new Date()}
-                                    initialFocus
-                                    className="p-3 pointer-events-auto"
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              {selectedDates[resume.id] && (
-                                <Button
-                                  onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
-                                  disabled={checkingAvailability[resume.id]}
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                  {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
-                                </Button>
-                              )}
-                            </div>
-
-                            {/* Step 2: Show Available Panelists */}
-                            {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length > 0 && (
-                              <div>
-                                <p className="text-sm font-medium text-gray-700 mb-2">2. Available Panelists:</p>
-                                <div className="space-y-2">
-                                  {availablePanelistsForDate[resume.id].map((panelist) => (
-                                    <div key={panelist.id} className="border rounded p-3 bg-gray-50">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                          <p className="font-medium text-sm">{panelist.name}</p>
-                                          <p className="text-xs text-gray-600">{panelist.email}</p>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {(panelist.skills || []).slice(0, 3).map((skill) => (
-                                              <span key={skill} className="bg-green-100 text-green-800 px-1 py-0.5 rounded text-xs">
-                                                {skill}
-                                              </span>
-                                            ))}
-                                          </div>
-                                          {panelist.availableSlots && panelist.availableSlots.length > 0 && (
-                                            <div className="mt-2">
-                                              <p className="text-xs text-gray-600 mb-1">Available Time Slots:</p>
-                                              <div className="flex flex-wrap gap-1">
-                                                {panelist.availableSlots.map((slot, index) => (
-                                                  <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                                    {slot.start_time} - {slot.end_time}
-                                                  </span>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="ml-4">
-                                          <Button
-                                            size="sm"
-                                            onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), panelist.availableSlots?.[0])}
-                                            disabled={assigningPanelist[resume.id]}
-                                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
-                                          >
-                                            {assigningPanelist[resume.id] ? 'Assigning...' : 'Assign'}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length === 0 && (
-                              <p className="text-sm text-orange-600">No panelists available for the selected date.</p>
-                            )}
-                          </>
-                        )}
-                        
-                        {resume.assigned_panelist && (
-                          <div className="text-sm text-green-600 font-medium">
-                            ✅ Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Interview Sessions Display */}
-          {interviewSessions.length > 0 && (
-            <Card className="mb-4 border-purple-200 shadow-md">
-              <CardHeader className="bg-purple-50">
-                <CardTitle className="text-purple-800">Scheduled Interview Sessions ({interviewSessions.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="mt-4">
-                <div className="space-y-4">
-                  {interviewSessions.map((session) => (
-                    <div key={session.session_id} className="border rounded-lg p-4 bg-white">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-800">{session.candidate_name}</h3>
-                          <p className="text-sm text-gray-600">with {session.panelist_name}</p>
+                    {/* Assignment Workflow */}
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                      {!resume.assigned_panelist && (
+                        <>
+                          {/* Step 1: Select Date */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="text-sm font-medium text-gray-700 min-w-fit">1. Select Interview Date:</label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-[240px] justify-start text-left font-normal",
+                                    !selectedDates[resume.id] && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={selectedDates[resume.id]}
+                                  onSelect={(date) => {
+                                    if (date) {
+                                      setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
+                                    }
+                                  }}
+                                  disabled={(date) => date < new Date()}
+                                  initialFocus
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            {selectedDates[resume.id] && (
+                              <Button
+                                onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
+                                disabled={checkingAvailability[resume.id]}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Step 2: Show Available Panelists */}
+                          {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-700 mb-3">2. Available Panelists:</p>
+                              <div className="space-y-3">
+                                {availablePanelistsForDate[resume.id].map((panelist) => (
+                                  <div key={panelist.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <p className="font-medium text-sm">{panelist.name}</p>
+                                        <p className="text-xs text-gray-600">{panelist.email}</p>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                          {(panelist.skills || []).slice(0, 3).map((skill) => (
+                                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                              {skill}
+                                            </span>
+                                          ))}
+                                        </div>
+                                        {panelist.availableSlots && panelist.availableSlots.length > 0 && (
+                                          <div className="mt-2">
+                                            <p className="text-xs text-gray-600 mb-1">Available Time Slots:</p>
+                                            <div className="flex flex-wrap gap-1">
+                                              {panelist.availableSlots.map((slot, index) => (
+                                                <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                                  {slot.start_time} - {slot.end_time}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="ml-4">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), panelist.availableSlots?.[0])}
+                                          disabled={assigningPanelist[resume.id]}
+                                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+                                        >
+                                          {assigningPanelist[resume.id] ? 'Assigning...' : 'Assign'}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length === 0 && (
+                            <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">No panelists available for the selected date.</p>
+                          )}
+                        </>
+                      )}
+                      
+                      {resume.assigned_panelist && (
+                        <div className="text-sm text-green-600 font-medium bg-green-50 p-3 rounded-lg">
+                          ✅ Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
                         </div>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Interview Sessions Display */}
+        {interviewSessions.length > 0 && (
+          <Card className="border-purple-200 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b">
+              <CardTitle className="text-purple-800">Scheduled Interview Sessions ({interviewSessions.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {interviewSessions.map((session) => (
+                  <div key={session.session_id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-800 text-lg">{session.candidate_name}</h3>
+                        <p className="text-sm text-gray-600">with {session.panelist_name}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => deleteInterviewSession(session.session_id)}
+                          disabled={deletingSession[session.session_id]}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           session.status === 'Scheduled' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {session.status}
                         </span>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">📅 {session.session_date}</p>
-                          <p className="text-sm text-gray-600">🕒 {session.session_start} - {session.session_end}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">📧 {session.panelist_email}</p>
-                          <p className="text-sm text-gray-600">📄 {session.resume_file}</p>
-                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                          {session.session_date}
+                        </p>
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-green-600" />
+                          {session.session_start} - {session.session_end}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-purple-600" />
+                          {session.panelist_email}
+                        </p>
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-orange-600" />
+                          {session.resume_file}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Panel Management Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Interview Panel Management</h2>
-            <Button
-              onClick={() => setIsAddingPanelist(true)}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              Add Panelist
-            </Button>
-          </div>
+        <Card className="border-indigo-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-indigo-800">Interview Panel Management</CardTitle>
+              <Button
+                onClick={() => setIsAddingPanelist(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Add Panelist
+              </Button>
+            </div>
+          </CardHeader>
 
           {/* Add Panelist Form */}
           {isAddingPanelist && (
-            <Card className="mb-6 border-blue-200 shadow-md">
-              <CardHeader className="bg-blue-50">
-                <CardTitle className="text-blue-800">Add New Panelist</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 mt-4">
+            <CardContent className="border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="space-y-6 py-6">
+                <h3 className="text-lg font-semibold text-blue-800">Add New Panelist</h3>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Name *</Label>
@@ -1030,7 +1225,7 @@ const InterviewScheduler = () => {
                   <Label className="text-sm font-medium">Weekly Availability *</Label>
                   <div className="space-y-3 mt-2">
                     {availabilityForm.dayAvailabilities.map((day, dayIndex) => (
-                      <div key={day.day} className="border rounded-lg p-3 bg-gray-50">
+                      <div key={day.day} className="border rounded-lg p-3 bg-white shadow-sm">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <input
@@ -1101,7 +1296,7 @@ const InterviewScheduler = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-4">
                   <Button 
                     onClick={addPanelist} 
                     disabled={addingPanelist}
@@ -1117,104 +1312,55 @@ const InterviewScheduler = () => {
                     Cancel
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
           )}
-
-          {/* Panelists List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {panelists.map((panelist) => (
-              <Card key={panelist.id} className="border-gray-200 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{panelist.name}</h3>
-                      <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {panelist.email}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">Skills:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {panelist.skills.map((skill) => (
-                          <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">Availability:</p>
-                      <div className="text-xs text-gray-600">
-                        {Object.keys(panelist.weeklyAvailability).length > 0 ? (
-                          Object.entries(panelist.weeklyAvailability).map(([day, slots]) => (
-                            <div key={day} className="flex justify-between">
-                              <span>{day}:</span>
-                              <span>
-                                {slots.map(slot => `${slot.start}-${slot.end}`).join(', ')}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-gray-500">No availability set</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        </Card>
 
         {/* Mock Scheduling Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Auto-Schedule Interview (Demo)</h2>
-          <Card className="border-green-200 shadow-md">
-            <CardHeader className="bg-green-50">
-              <CardTitle className="text-green-800">Schedule Interview for Shortlisted Candidate</CardTitle>
-            </CardHeader>
-            <CardContent className="mt-4">
-              <div className="flex gap-4">
-                <Button
-                  onClick={() => mockScheduleInterview('John Doe', ['Python', 'React'])}
-                  className="bg-green-600 hover:bg-green-700"
-                  disabled={panelists.length === 0}
-                >
-                  Schedule for John Doe (Python, React)
-                </Button>
-                <Button
-                  onClick={() => mockScheduleInterview('Jane Smith', ['C#', 'Azure'])}
-                  className="bg-green-600 hover:bg-green-700"
-                  disabled={panelists.length === 0}
-                >
-                  Schedule for Jane Smith (C#, Azure)
-                </Button>
-              </div>
-              {panelists.length === 0 && (
-                <p className="text-sm text-gray-500 mt-2">Add panelists first to enable scheduling</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="border-green-200 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
+            <CardTitle className="text-green-800">Auto-Schedule Interview (Demo)</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-4">
+              <Button
+                onClick={() => mockScheduleInterview('John Doe', ['Python', 'React'])}
+                className="bg-green-600 hover:bg-green-700 shadow-sm"
+                disabled={panelists.length === 0}
+              >
+                Schedule for John Doe (Python, React)
+              </Button>
+              <Button
+                onClick={() => mockScheduleInterview('Jane Smith', ['C#', 'Azure'])}
+                className="bg-green-600 hover:bg-green-700 shadow-sm"
+                disabled={panelists.length === 0}
+              >
+                Schedule for Jane Smith (C#, Azure)
+              </Button>
+            </div>
+            {panelists.length === 0 && (
+              <p className="text-sm text-gray-500 mt-3 bg-gray-50 p-3 rounded-lg">Add panelists first to enable scheduling</p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Scheduled Interviews */}
         {scheduledInterviews.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Scheduled Interviews</h2>
-            <div className="space-y-4">
-              {scheduledInterviews.map((interview) => (
-                <Card key={interview.id} className="border-orange-200 shadow-sm">
-                  <CardContent className="p-4">
+          <Card className="border-orange-200 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-orange-100 border-b">
+              <CardTitle className="text-orange-800">Scheduled Interviews ({scheduledInterviews.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {scheduledInterviews.map((interview) => (
+                  <div key={interview.id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
                     <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-gray-800">
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-gray-800 text-lg">
                           {interview.candidateName} → {interview.panelistName}
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-6 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
                             {interview.date}
@@ -1231,7 +1377,7 @@ const InterviewScheduler = () => {
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-gray-600">Skills:</span>
                           {interview.candidateSkills.map((skill) => (
-                            <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                            <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
                               {skill}
                             </span>
                           ))}
@@ -1256,11 +1402,11 @@ const InterviewScheduler = () => {
                         </a>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

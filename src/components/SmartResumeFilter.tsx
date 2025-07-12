@@ -224,7 +224,7 @@ const SmartResumeFilter = () => {
         const file = resumes[i];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('job_title', jobTitleToUse);
+        formData.append('position_name', jobTitleToUse);
 
         console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
         

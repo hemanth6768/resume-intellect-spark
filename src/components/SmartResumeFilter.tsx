@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useToast } from "@/hooks/use-toast";
+import ExpandableText from './ExpandableText';
 
 interface JobRequirements {
   jobTitle: string;
@@ -30,7 +31,11 @@ interface ResumeAnalysis {
   worked_on: string;
 }
 
-const SmartResumeFilter = () => {
+interface SmartResumeFilterProps {
+  showOnlyRequirements?: boolean;
+}
+
+const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequirements = false }) => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirements>({
     jobTitle: '',
     requiredSkills: [],
@@ -296,35 +301,10 @@ const SmartResumeFilter = () => {
 
   const canAnalyze = resumes.length > 0 && (uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center space-x-4 bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
-              <span className="text-sm font-medium text-gray-700">Job Requirements</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
-              <span className="text-sm font-medium text-gray-700">Resume Analysis</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-400" />
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</div>
-              <span className="text-sm font-medium text-gray-700">Question Generation</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
-            <h2 className="text-xl font-bold text-gray-800">Define Job Requirements</h2>
-            <p className="text-sm text-gray-600">Set the criteria for your ideal candidate</p>
-          </div>
-          
+  if (showOnlyRequirements) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
+        <div className="max-w-4xl mx-auto">
           <Card className="border-blue-200 shadow-md">
             <CardHeader className="bg-blue-50">
               <CardTitle className="flex items-center gap-2 text-blue-800">
@@ -440,14 +420,14 @@ const SmartResumeFilter = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
-            <h2 className="text-xl font-bold text-gray-800">Analyze Resumes</h2>
-            <p className="text-sm text-gray-600">Upload and evaluate candidate resumes</p>
-          </div>
-
           <Card className="border-purple-200 shadow-md">
             <CardHeader className="bg-purple-50">
               <CardTitle className="flex items-center gap-2 text-purple-800">
@@ -537,12 +517,6 @@ const SmartResumeFilter = () => {
 
         {analyses.length > 0 && (
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</div>
-              <h2 className="text-xl font-bold text-gray-800">Analysis Results & Question Generation</h2>
-              <p className="text-sm text-gray-600">Review candidates and generate interview questions</p>
-            </div>
-
             <Card className="border-green-200 shadow-md">
               <CardHeader className="bg-green-50">
                 <div className="flex items-center justify-between">
@@ -646,8 +620,23 @@ const SmartResumeFilter = () => {
 
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
-                          <p className="text-sm text-gray-800 line-clamp-3">{analysis.reason}</p>
+                          <ExpandableText 
+                            text={analysis.reason} 
+                            maxLength={120}
+                            className="text-sm text-gray-800"
+                          />
                         </div>
+
+                        {analysis.worked_on && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Work Experience:</p>
+                            <ExpandableText 
+                              text={analysis.worked_on} 
+                              maxLength={100}
+                              className="text-sm text-gray-800"
+                            />
+                          </div>
+                        )}
 
                         <div className="pt-2 border-t">
                           <Button
@@ -708,7 +697,13 @@ const SmartResumeFilter = () => {
                                 ))}
                               </div>
                             </td>
-                            <td className="p-2 text-sm max-w-xs">{analysis.reason}</td>
+                            <td className="p-2 max-w-xs">
+                              <ExpandableText 
+                                text={analysis.reason} 
+                                maxLength={100}
+                                className="text-sm"
+                              />
+                            </td>
                             <td className="p-2">
                               <Button
                                 onClick={() => saveCandidateDetails(analysis)}

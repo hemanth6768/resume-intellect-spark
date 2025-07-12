@@ -4,16 +4,22 @@ import { Button } from '../components/ui/button';
 import ResumeUploader from "../components/ResumeUploader";
 import SmartResumeFilter from "../components/SmartResumeFilter";
 import InterviewScheduler from "../components/InterviewScheduler";
-import { FileText, MessageSquare, Calendar, Menu, X } from 'lucide-react';
+import { FileText, MessageSquare, Calendar, Menu, X, Search } from 'lucide-react';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'filter' | 'questions' | 'scheduler'>('filter');
+  const [activeTab, setActiveTab] = useState<'requirements' | 'filter' | 'questions' | 'scheduler'>('requirements');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const menuItems = [
     {
+      id: 'requirements' as const,
+      label: 'Define Job Requirements',
+      icon: Search,
+      description: 'Set criteria for ideal candidates'
+    },
+    {
       id: 'filter' as const,
-      label: 'Resume Filter',
+      label: 'Analyze Resumes',
       icon: FileText,
       description: 'Filter and analyze resumes'
     },
@@ -34,7 +40,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r shadow-sm flex flex-col`}>
+      <div className={`${sidebarOpen ? 'w-80' : 'w-20'} transition-all duration-300 bg-white border-r shadow-sm flex flex-col`}>
         {/* Header */}
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
@@ -50,7 +56,7 @@ const Index = () => {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="ml-auto"
             >
-              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
         </div>
@@ -66,19 +72,19 @@ const Index = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
+                  className={`w-full flex items-center gap-4 p-4 rounded-lg transition-colors text-left ${
                     isActive 
                       ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                  <Icon className={`w-7 h-7 ${isActive ? 'text-blue-600' : 'text-gray-500'} flex-shrink-0`} />
                   {sidebarOpen && (
                     <div className="min-w-0">
                       <div className={`font-medium ${isActive ? 'text-blue-800' : 'text-gray-800'}`}>
                         {item.label}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 mt-1">
                         {item.description}
                       </div>
                     </div>
@@ -117,7 +123,8 @@ const Index = () => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-auto">
-          {activeTab === 'filter' && <SmartResumeFilter />}
+          {activeTab === 'requirements' && <SmartResumeFilter showOnlyRequirements={true} />}
+          {activeTab === 'filter' && <SmartResumeFilter showOnlyRequirements={false} />}
           {activeTab === 'questions' && <ResumeUploader />}
           {activeTab === 'scheduler' && <InterviewScheduler />}
         </div>

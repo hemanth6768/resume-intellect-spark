@@ -4,46 +4,123 @@ import { Button } from '../components/ui/button';
 import ResumeUploader from "../components/ResumeUploader";
 import SmartResumeFilter from "../components/SmartResumeFilter";
 import InterviewScheduler from "../components/InterviewScheduler";
+import { FileText, MessageSquare, Calendar, Menu, X } from 'lucide-react';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<'filter' | 'questions' | 'scheduler'>('filter');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const menuItems = [
+    {
+      id: 'filter' as const,
+      label: 'Resume Filter',
+      icon: FileText,
+      description: 'Filter and analyze resumes'
+    },
+    {
+      id: 'questions' as const,
+      label: 'Question Generator',
+      icon: MessageSquare,
+      description: 'Generate interview questions'
+    },
+    {
+      id: 'scheduler' as const,
+      label: 'Interview Scheduler',
+      icon: Calendar,
+      description: 'Schedule interviews'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Header */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-center space-x-4">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r shadow-sm flex flex-col`}>
+        {/* Header */}
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            {sidebarOpen && (
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">SMART Hire</h1>
+                <p className="text-sm text-gray-600">AI-Powered Recruitment</p>
+              </div>
+            )}
             <Button
-              variant={activeTab === 'filter' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('filter')}
-              className="flex items-center gap-2"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="ml-auto"
             >
-              🎯 Resume Filter
-            </Button>
-            <Button
-              variant={activeTab === 'questions' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('questions')}
-              className="flex items-center gap-2"
-            >
-              🤖 Question Generator
-            </Button>
-            <Button
-              variant={activeTab === 'scheduler' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('scheduler')}
-              className="flex items-center gap-2"
-            >
-              📅 Interview Scheduler
+              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </Button>
           </div>
         </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
+                    isActive 
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                  {sidebarOpen && (
+                    <div className="min-w-0">
+                      <div className={`font-medium ${isActive ? 'text-blue-800' : 'text-gray-800'}`}>
+                        {item.label}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {item.description}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t">
+          {sidebarOpen && (
+            <div className="text-xs text-gray-500 text-center">
+              Streamline your hiring process with AI
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="min-h-screen">
-        {activeTab === 'filter' && <SmartResumeFilter />}
-        {activeTab === 'questions' && <ResumeUploader />}
-        {activeTab === 'scheduler' && <InterviewScheduler />}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Top Bar */}
+        <div className="bg-white border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                {menuItems.find(item => item.id === activeTab)?.label}
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {menuItems.find(item => item.id === activeTab)?.description}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto">
+          {activeTab === 'filter' && <SmartResumeFilter />}
+          {activeTab === 'questions' && <ResumeUploader />}
+          {activeTab === 'scheduler' && <InterviewScheduler />}
+        </div>
       </div>
     </div>
   );

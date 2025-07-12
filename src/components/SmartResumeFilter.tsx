@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Save } from 'lucide-react';
+import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -17,13 +16,18 @@ interface JobRequirements {
 interface ResumeAnalysis {
   id: string;
   fileName: string;
-  candidate_experience: number;
+  candidate_email: string;
+  candidate_name: string;
+  candidate_tech_stack: string[];
+  experience_years: number;
   matched_skills: string[];
+  matched_tech_stack: string[];
   mentioned_tech_stack: string[];
   missing_skills: string[];
   reason: string;
+  resume_skills: string[];
   shortlisted: boolean;
-  worked_on: string[];
+  worked_on: string;
 }
 
 const SmartResumeFilter = () => {
@@ -139,11 +143,12 @@ const SmartResumeFilter = () => {
     
     const payload = {
       resume_filename: analysis.fileName,
-      candidate_name: analysis.fileName.replace('.pdf', ''), // Extract name from filename
-      experience: analysis.candidate_experience,
+      candidate_name: analysis.candidate_name,
+      candidate_email: analysis.candidate_email,
+      experience: analysis.experience_years,
       matched_skills: analysis.matched_skills,
       missing_skills: analysis.missing_skills,
-      tech_stack: analysis.mentioned_tech_stack,
+      tech_stack: analysis.candidate_tech_stack,
       reason: analysis.reason,
       shortlisted: analysis.shortlisted,
       worked_on: analysis.worked_on,
@@ -240,13 +245,18 @@ const SmartResumeFilter = () => {
           const analysis: ResumeAnalysis = {
             id: `resume-${i}`,
             fileName: file.name,
-            candidate_experience: result.candidate_experience || 0,
+            candidate_email: result.candidate_email || '',
+            candidate_name: result.candidate_name || file.name.replace('.pdf', ''),
+            candidate_tech_stack: result.candidate_tech_stack || [],
+            experience_years: result.experience_years || 0,
             matched_skills: result.matched_skills || [],
+            matched_tech_stack: result.matched_tech_stack || [],
             mentioned_tech_stack: result.mentioned_tech_stack || [],
             missing_skills: result.missing_skills || [],
             reason: result.reason || 'No reason provided',
+            resume_skills: result.resume_skills || [],
             shortlisted: result.shortlisted || false,
-            worked_on: result.worked_on || []
+            worked_on: result.worked_on || ''
           };
           
           newAnalyses.push(analysis);
@@ -281,7 +291,7 @@ const SmartResumeFilter = () => {
   const sortedAnalyses = [...analyses].sort((a, b) => {
     if (a.shortlisted && !b.shortlisted) return -1;
     if (!a.shortlisted && b.shortlisted) return 1;
-    return b.candidate_experience - a.candidate_experience;
+    return b.experience_years - a.experience_years;
   });
 
   const canAnalyze = resumes.length > 0 && (uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
@@ -289,16 +299,6 @@ const SmartResumeFilter = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-4 px-2 sm:py-8 sm:px-4">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 mb-2">
-            🎯 Smart Resume Filter
-          </h1>
-          <p className="text-base sm:text-lg text-gray-600 px-2">
-            Streamline your hiring process - Define requirements, analyze resumes, and generate interview questions
-          </p>
-        </div>
-
-        {/* Workflow Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4 bg-white rounded-lg p-4 shadow-sm">
             <div className="flex items-center space-x-2">
@@ -512,7 +512,14 @@ const SmartResumeFilter = () => {
                     disabled={loading || !canAnalyze}
                     className="w-full bg-purple-600 hover:bg-purple-700"
                   >
-                    {loading ? 'Analyzing Resumes...' : 'Analyze Resumes'}
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analyzing Resumes...
+                      </>
+                    ) : (
+                      'Analyze Resumes'
+                    )}
                   </Button>
                   
                   {!canAnalyze && resumes.length > 0 && (
@@ -528,7 +535,6 @@ const SmartResumeFilter = () => {
           </Card>
         </div>
 
-        {/* Step 3: Results & Question Generation */}
         {analyses.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
@@ -571,7 +577,10 @@ const SmartResumeFilter = () => {
                         className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
                       >
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium truncate">{analysis.fileName}</h3>
+                          <div>
+                            <h3 className="font-medium truncate">{analysis.candidate_name}</h3>
+                            <p className="text-xs text-gray-500 truncate">{analysis.candidate_email}</p>
+                          </div>
                           <span className={`p-1 rounded ${analysis.shortlisted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                           </span>
@@ -587,18 +596,21 @@ const SmartResumeFilter = () => {
                           
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Experience:</span>
-                            <span className="font-medium">{analysis.candidate_experience} years</span>
+                            <span className="font-medium">{analysis.experience_years} years</span>
                           </div>
                         </div>
 
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Matched Skills:</p>
                           <div className="flex flex-wrap gap-1">
-                            {analysis.matched_skills.map((skill) => (
+                            {analysis.matched_skills.slice(0, 3).map((skill) => (
                               <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                                 {skill}
                               </span>
                             ))}
+                            {analysis.matched_skills.length > 3 && (
+                              <span className="text-xs text-gray-500">+{analysis.matched_skills.length - 3} more</span>
+                            )}
                           </div>
                         </div>
 
@@ -606,11 +618,14 @@ const SmartResumeFilter = () => {
                           <div>
                             <p className="text-sm text-gray-600 mb-1">Missing Skills:</p>
                             <div className="flex flex-wrap gap-1">
-                              {analysis.missing_skills.map((skill) => (
+                              {analysis.missing_skills.slice(0, 3).map((skill) => (
                                 <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
                                   {skill}
                                 </span>
                               ))}
+                              {analysis.missing_skills.length > 3 && (
+                                <span className="text-xs text-gray-500">+{analysis.missing_skills.length - 3} more</span>
+                              )}
                             </div>
                           </div>
                         )}
@@ -618,37 +633,20 @@ const SmartResumeFilter = () => {
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Tech Stack:</p>
                           <div className="flex flex-wrap gap-1">
-                            {analysis.mentioned_tech_stack.slice(0, 3).map((tech) => (
+                            {analysis.candidate_tech_stack.slice(0, 3).map((tech) => (
                               <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                                 {tech}
                               </span>
                             ))}
-                            {analysis.mentioned_tech_stack.length > 3 && (
-                              <span className="text-xs text-gray-500">+{analysis.mentioned_tech_stack.length - 3} more</span>
+                            {analysis.candidate_tech_stack.length > 3 && (
+                              <span className="text-xs text-gray-500">+{analysis.candidate_tech_stack.length - 3} more</span>
                             )}
                           </div>
                         </div>
 
-                        {analysis.worked_on.length > 0 && (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Experience Highlights:</p>
-                            <ul className="text-xs text-gray-700 space-y-1">
-                              {analysis.worked_on.slice(0, 2).map((work, index) => (
-                                <li key={index} className="flex items-start gap-1">
-                                  <span className="text-blue-500 mt-1">•</span>
-                                  <span>{work}</span>
-                                </li>
-                              ))}
-                              {analysis.worked_on.length > 2 && (
-                                <li className="text-gray-500">+{analysis.worked_on.length - 2} more...</li>
-                              )}
-                            </ul>
-                          </div>
-                        )}
-
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Reasoning:</p>
-                          <p className="text-sm text-gray-800">{analysis.reason}</p>
+                          <p className="text-sm text-gray-800 line-clamp-3">{analysis.reason}</p>
                         </div>
 
                         <div className="pt-2 border-t">
@@ -671,6 +669,7 @@ const SmartResumeFilter = () => {
                       <thead>
                         <tr className="border-b">
                           <th className="text-left p-2">Candidate</th>
+                          <th className="text-left p-2">Email</th>
                           <th className="text-left p-2">Status</th>
                           <th className="text-left p-2">Experience</th>
                           <th className="text-left p-2">Matched Skills</th>
@@ -682,14 +681,15 @@ const SmartResumeFilter = () => {
                       <tbody>
                         {sortedAnalyses.map((analysis) => (
                           <tr key={analysis.id} className="border-b hover:bg-gray-50">
-                            <td className="p-2 font-medium">{analysis.fileName}</td>
+                            <td className="p-2 font-medium">{analysis.candidate_name}</td>
+                            <td className="p-2 text-sm text-gray-600">{analysis.candidate_email}</td>
                             <td className="p-2">
                               <span className={`flex items-center gap-1 ${analysis.shortlisted ? 'text-green-600' : 'text-red-600'}`}>
                                 {analysis.shortlisted ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
                                 {analysis.shortlisted ? 'Shortlisted' : 'Not Selected'}
                               </span>
                             </td>
-                            <td className="p-2">{analysis.candidate_experience} years</td>
+                            <td className="p-2">{analysis.experience_years} years</td>
                             <td className="p-2">
                               <div className="flex flex-wrap gap-1">
                                 {analysis.matched_skills.map((skill) => (

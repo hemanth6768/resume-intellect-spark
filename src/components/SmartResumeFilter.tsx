@@ -152,17 +152,18 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
     setSavingCandidates(prev => ({ ...prev, [analysis.id]: true }));
     
     const payload = {
-      resume_filename: analysis.fileName,
-      candidate_name: analysis.candidate_name,
       candidate_email: analysis.candidate_email,
-      experience: analysis.experience_years,
+      candidate_name: analysis.candidate_name,
+      candidate_tech_stack: analysis.candidate_tech_stack,
+      candidate_type: analysis.candidate_type,
+      experience_years: analysis.experience_years,
       matched_skills: analysis.matched_skills,
-      missing_skills: analysis.missing_skills,
-      tech_stack: analysis.candidate_tech_stack,
+      matched_tech_stack: analysis.matched_tech_stack,
+      mentioned_tech_stack: analysis.mentioned_tech_stack,
       reason: analysis.reason,
+      resume_skills: analysis.resume_skills,
       shortlisted: analysis.shortlisted,
-      worked_on: analysis.worked_on,
-      timestamp: new Date().toISOString()
+      worked_on: analysis.worked_on
     };
 
     try {

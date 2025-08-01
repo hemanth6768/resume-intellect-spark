@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
 import { useToast } from "@/hooks/use-toast";
 import ExpandableText from './ExpandableText';
 
 interface JobRequirements {
   jobTitle: string;
+  description: string;
   requiredSkills: string[];
   minExperience: number;
   techStack: string[];
@@ -38,6 +40,7 @@ interface SmartResumeFilterProps {
 const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequirements = false }) => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirements>({
     jobTitle: '',
+    description: '',
     requiredSkills: [],
     minExperience: 0,
     techStack: []
@@ -102,6 +105,7 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
     
     const payload = {
       job_title: jobRequirements.jobTitle,
+      description: jobRequirements.description,
       skills: jobRequirements.requiredSkills,
       min_experience: jobRequirements.minExperience,
       tech_stack: jobRequirements.techStack
@@ -325,6 +329,21 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
                   className="mt-2"
                 />
                 <p className="text-xs text-gray-500 mt-1">This will be used as the default for resume analysis</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Job Description</Label>
+                <Textarea
+                  placeholder="Describe the role, required skills, working experience, and other qualifications you're looking for..."
+                  value={jobRequirements.description}
+                  onChange={(e) => setJobRequirements(prev => ({
+                    ...prev,
+                    description: e.target.value
+                  }))}
+                  className="mt-2"
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500 mt-1">Provide detailed information about the role and requirements</p>
               </div>
 
               <div>

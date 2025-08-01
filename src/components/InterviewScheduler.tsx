@@ -41,17 +41,12 @@ interface ScheduledInterview {
 }
 
 interface ShortlistedResume {
-  id: string;
-  resume_filename: string;
+  id: number;
+  candidate_email: string;
   candidate_name: string;
+  candidate_type: string;
   experience: number;
-  matched_skills: string[];
-  missing_skills: string[];
-  tech_stack: string[];
-  reason: string;
   shortlisted: boolean;
-  worked_on: string[];
-  timestamp: string;
   assigned_panelist?: string;
 }
 
@@ -179,8 +174,8 @@ const InterviewScheduler = () => {
 
   const filteredResumes = shortlistedResumes.filter(resume =>
     resume.candidate_name.toLowerCase().includes(resumeSearch.toLowerCase()) ||
-    resume.matched_skills.some(skill => skill.toLowerCase().includes(resumeSearch.toLowerCase())) ||
-    resume.tech_stack.some(tech => tech.toLowerCase().includes(resumeSearch.toLowerCase()))
+    resume.candidate_email.toLowerCase().includes(resumeSearch.toLowerCase()) ||
+    resume.candidate_type.toLowerCase().includes(resumeSearch.toLowerCase())
   );
 
   // Delete functions
@@ -227,7 +222,7 @@ const InterviewScheduler = () => {
       });
 
       if (response.ok) {
-        setShortlistedResumes(prev => prev.filter(r => r.id !== resumeId));
+        setShortlistedResumes(prev => prev.filter(r => r.id.toString() !== resumeId));
         toast({
           title: "Success!",
           description: "Resume deleted successfully.",
@@ -673,7 +668,7 @@ const InterviewScheduler = () => {
         
         // Update local state
         setShortlistedResumes(prev => prev.map(resume => 
-          resume.id === resumeId 
+          resume.id.toString() === resumeId 
             ? { ...resume, assigned_panelist: panelistId }
             : resume
         ));
@@ -801,7 +796,7 @@ const InterviewScheduler = () => {
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
                   <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                  {loadingResumes ? 'Loading...' : 'Load Resumes'}
+                  {loadingResumes ? 'Loading...' : 'Shortlisted Resumes'}
                 </Button>
                 <Button
                   onClick={fetchInterviewSessions}
@@ -925,158 +920,35 @@ const InterviewScheduler = () => {
                     <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{resume.candidate_name}</h3>
-                        <p className="text-sm text-gray-600">{resume.experience} years experience</p>
+                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                          <Mail className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{resume.candidate_email}</span>
+                        </p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-sm text-gray-600">{resume.experience} years experience</span>
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                            {resume.candidate_type}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Button
-                          onClick={() => deleteResume(resume.id)}
-                          disabled={deletingResume[resume.id]}
+                          onClick={() => deleteResume(resume.id.toString())}
+                          disabled={deletingResume[resume.id.toString()]}
                           variant="outline"
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         >
                           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
-                          Shortlisted
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          resume.shortlisted 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {resume.shortlisted ? 'Shortlisted' : 'Not Shortlisted'}
                         </span>
                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Matched Skills:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {(resume.matched_skills || []).map((skill) => (
-                            <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Tech Stack:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {(resume.tech_stack || []).slice(0, 4).map((tech) => (
-                            <span key={tech} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
-                              {tech}
-                            </span>
-                          ))}
-                          {resume.tech_stack && resume.tech_stack.length > 4 && (
-                            <span className="text-xs text-gray-500 px-2 py-1">+{resume.tech_stack.length - 4} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Assignment Workflow */}
-                    <div className="pt-4 border-t border-gray-100 space-y-4">
-                      {!resume.assigned_panelist && (
-                        <>
-                          {/* Step 1: Select Date */}
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                            <label className="text-sm font-medium text-gray-700 min-w-fit">1. Select Interview Date:</label>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "w-full sm:w-[240px] justify-start text-left font-normal text-sm",
-                                      !selectedDates[resume.id] && "text-muted-foreground"
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDates[resume.id] ? format(selectedDates[resume.id], "PPP") : <span>Pick a date</span>}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <CalendarComponent
-                                    mode="single"
-                                    selected={selectedDates[resume.id]}
-                                    onSelect={(date) => {
-                                      if (date) {
-                                        setSelectedDates(prev => ({ ...prev, [resume.id]: date }));
-                                      }
-                                    }}
-                                    disabled={(date) => date < new Date()}
-                                    initialFocus
-                                    className="p-3 pointer-events-auto"
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              {selectedDates[resume.id] && (
-                                <Button
-                                  onClick={() => checkAvailabilityForDate(resume.id, selectedDates[resume.id])}
-                                  disabled={checkingAvailability[resume.id]}
-                                  className="bg-blue-600 hover:bg-blue-700 text-xs sm:text-sm w-full sm:w-auto"
-                                >
-                                  {checkingAvailability[resume.id] ? 'Checking...' : 'Check Availability'}
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Step 2: Show Available Panelists */}
-                          {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-700 mb-3">2. Available Panelists:</p>
-                              <div className="space-y-3">
-                                {availablePanelistsForDate[resume.id].map((panelist) => (
-                                  <div key={panelist.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50">
-                                    <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">{panelist.name}</p>
-                                        <p className="text-xs text-gray-600 truncate">{panelist.email}</p>
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {(panelist.skills || []).slice(0, 3).map((skill) => (
-                                            <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-                                              {skill}
-                                            </span>
-                                          ))}
-                                        </div>
-                                        {panelist.availableSlots && panelist.availableSlots.length > 0 && (
-                                          <div className="mt-2">
-                                            <p className="text-xs text-gray-600 mb-1">Available Time Slots:</p>
-                                            <div className="flex flex-wrap gap-1">
-                                              {panelist.availableSlots.map((slot, index) => (
-                                                <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                                  {slot.start_time} - {slot.end_time}
-                                                </span>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="flex-shrink-0 w-full sm:w-auto">
-                                        <Button
-                                          size="sm"
-                                          onClick={() => assignPanelistToResume(resume.id, panelist.id.toString(), panelist.availableSlots?.[0])}
-                                          disabled={assigningPanelist[resume.id]}
-                                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-xs sm:text-sm w-full sm:w-auto"
-                                        >
-                                          {assigningPanelist[resume.id] ? 'Assigning...' : 'Assign'}
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {availablePanelistsForDate[resume.id] && availablePanelistsForDate[resume.id].length === 0 && (
-                            <p className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">No panelists available for the selected date.</p>
-                          )}
-                        </>
-                      )}
-                      
-                      {resume.assigned_panelist && (
-                        <div className="text-sm text-green-600 font-medium bg-green-50 p-3 rounded-lg">
-                          ✅ Assigned to: {availablePanelists.find(p => p.id.toString() === resume.assigned_panelist)?.name}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}

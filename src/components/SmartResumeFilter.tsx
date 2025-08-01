@@ -22,6 +22,7 @@ interface ResumeAnalysis {
   candidate_email: string;
   candidate_name: string;
   candidate_tech_stack: string[];
+  candidate_type?: string;
   experience_years: number;
   matched_skills: string[];
   matched_tech_stack: string[];
@@ -257,6 +258,7 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
             candidate_email: result.candidate_email || '',
             candidate_name: result.candidate_name || file.name.replace('.pdf', ''),
             candidate_tech_stack: result.candidate_tech_stack || [],
+            candidate_type: result.candidate_type,
             experience_years: result.experience_years || 0,
             matched_skills: result.matched_skills || [],
             matched_tech_stack: result.matched_tech_stack || [],
@@ -591,50 +593,69 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
                             <span className="text-sm text-gray-600">Experience:</span>
                             <span className="font-medium">{analysis.experience_years} years</span>
                           </div>
+
+                          {analysis.candidate_type && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Type:</span>
+                              <span className="font-medium capitalize">{analysis.candidate_type}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div>
                           <p className="text-sm text-gray-600 mb-1">Matched Skills:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {analysis.matched_skills.slice(0, 3).map((skill) => (
-                              <span key={skill} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                {skill}
-                              </span>
-                            ))}
-                            {analysis.matched_skills.length > 3 && (
-                              <span className="text-xs text-gray-500">+{analysis.matched_skills.length - 3} more</span>
-                            )}
-                          </div>
+                          <ExpandableText 
+                            text={analysis.matched_skills.join(', ')} 
+                            maxLength={80}
+                            className="text-sm"
+                          />
                         </div>
 
                         {analysis.missing_skills.length > 0 && (
                           <div>
                             <p className="text-sm text-gray-600 mb-1">Missing Skills:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {analysis.missing_skills.slice(0, 3).map((skill) => (
-                                <span key={skill} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
-                                  {skill}
-                                </span>
-                              ))}
-                              {analysis.missing_skills.length > 3 && (
-                                <span className="text-xs text-gray-500">+{analysis.missing_skills.length - 3} more</span>
-                              )}
-                            </div>
+                            <ExpandableText 
+                              text={analysis.missing_skills.join(', ')} 
+                              maxLength={80}
+                              className="text-sm text-red-600"
+                            />
                           </div>
                         )}
 
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Tech Stack:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {analysis.candidate_tech_stack.slice(0, 3).map((tech) => (
-                              <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                {tech}
-                              </span>
-                            ))}
-                            {analysis.candidate_tech_stack.length > 3 && (
-                              <span className="text-xs text-gray-500">+{analysis.candidate_tech_stack.length - 3} more</span>
-                            )}
-                          </div>
+                          <p className="text-sm text-gray-600 mb-1">Candidate Tech Stack:</p>
+                          <ExpandableText 
+                            text={analysis.candidate_tech_stack.join(', ')} 
+                            maxLength={80}
+                            className="text-sm text-blue-600"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Matched Tech Stack:</p>
+                          <ExpandableText 
+                            text={analysis.matched_tech_stack.join(', ')} 
+                            maxLength={80}
+                            className="text-sm text-purple-600"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Mentioned Tech Stack:</p>
+                          <ExpandableText 
+                            text={analysis.mentioned_tech_stack.join(', ')} 
+                            maxLength={80}
+                            className="text-sm text-indigo-600"
+                          />
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">Resume Skills:</p>
+                          <ExpandableText 
+                            text={analysis.resume_skills.join(', ')} 
+                            maxLength={100}
+                            className="text-sm text-gray-700"
+                          />
                         </div>
 
                         <div>

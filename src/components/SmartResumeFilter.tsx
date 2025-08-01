@@ -242,7 +242,7 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
 
         console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
         
-        const response = await fetch('http://localhost:5000/shortlist-resume', {
+        const response = await fetch('http://localhost:5001/shortlist-resume', {
           method: 'POST',
           body: formData
         });

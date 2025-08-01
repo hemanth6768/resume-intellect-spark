@@ -1,7 +1,7 @@
 
 // API Configuration
 // Change the 'prod' value to your production API URL
-const prod = 'http://13.71.22.18:5000'; // Replace this with your production URL
+const prod = 'http://localhost:5000'; // Replace this with your production URL
 
 export const API_BASE_URL = prod;
 

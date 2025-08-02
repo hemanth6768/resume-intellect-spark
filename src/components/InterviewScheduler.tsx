@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Users, Check, X, Mail, MapPin, ChevronDown, ChevronUp, UserCheck, Download, CalendarIcon, Trash2, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar as CalendarComponent } from './ui/calendar';
@@ -82,6 +83,28 @@ interface DayAvailability {
   timeSlots: TimeSlot[];
 }
 
+interface JobRequirement {
+  id: number;
+  position_name: string;
+  description: string;
+  skills: string[];
+  tech_stack: string[];
+  experience_required: number;
+  created_at: string;
+}
+
+interface PanelistWithPosition {
+  id: number;
+  name: string;
+  email: string;
+  skills: string[];
+  position_name: string;
+  availability: {
+    [key: string]: string[];
+  };
+  created_at: string;
+}
+
 interface PanelistWithAvailability extends Panelist {
   availableSlots?: { start_time: string; end_time: string }[];
 }
@@ -106,7 +129,87 @@ const InterviewScheduler = () => {
   const [deletingSession, setDeletingSession] = useState<Record<number, boolean>>({});
   const [panelistSearch, setPanelistSearch] = useState('');
   const [resumeSearch, setResumeSearch] = useState('');
+  const [availableJobRequirements, setAvailableJobRequirements] = useState<JobRequirement[]>([]);
+  const [selectedPosition, setSelectedPosition] = useState<string>('All');
+  const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
+  const [displayedPanelists, setDisplayedPanelists] = useState<PanelistWithPosition[]>([]);
   const { toast } = useToast();
+
+  // Fetch job requirements when component mounts
+  useEffect(() => {
+    fetchJobRequirements();
+  }, []);
+
+  const fetchJobRequirements = async () => {
+    setLoadingJobRequirements(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.JOB_REQUIREMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableJobRequirements(data);
+        console.log('Job requirements fetched:', data);
+      } else {
+        console.error('Failed to fetch job requirements:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch job requirements. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching job requirements:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching job requirements. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingJobRequirements(false);
+    }
+  };
+
+  const fetchPanelistsByPosition = async (positionName: string) => {
+    setLoadingPanelists(true);
+    try {
+      let url = API_ENDPOINTS.PANELISTS;
+      if (positionName !== 'All') {
+        url += `?position_name=${encodeURIComponent(positionName)}`;
+      }
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setDisplayedPanelists(data);
+        console.log('Panelists fetched for position:', positionName, data);
+        toast({
+          title: "Success!",
+          description: `Found ${data.length} panelists for ${positionName === 'All' ? 'all positions' : positionName}!`,
+        });
+      } else {
+        console.error('Failed to fetch panelists:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch panelists. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching panelists:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching panelists. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPanelists(false);
+    }
+  };
+
+  // Handle position selection change
+  const handlePositionChange = (value: string) => {
+    setSelectedPosition(value);
+    fetchPanelistsByPosition(value);
+  };
   
   const [newPanelist, setNewPanelist] = useState({
     name: '',
@@ -166,10 +269,11 @@ const InterviewScheduler = () => {
   };
 
   // Filter functions for search
-  const filteredPanelists = availablePanelists.filter(panelist =>
+  const filteredPanelists = displayedPanelists.filter(panelist =>
     panelist.name.toLowerCase().includes(panelistSearch.toLowerCase()) ||
     panelist.email.toLowerCase().includes(panelistSearch.toLowerCase()) ||
-    panelist.skills.some(skill => skill.toLowerCase().includes(panelistSearch.toLowerCase()))
+    panelist.skills.some(skill => skill.toLowerCase().includes(panelistSearch.toLowerCase())) ||
+    panelist.position_name.toLowerCase().includes(panelistSearch.toLowerCase())
   );
 
   const filteredResumes = shortlistedResumes.filter(resume =>
@@ -809,10 +913,35 @@ const InterviewScheduler = () => {
               </div>
             </div>
           </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <Label className="text-sm font-medium whitespace-nowrap">Filter by Position:</Label>
+              {loadingJobRequirements ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <span className="text-sm text-gray-500">Loading positions...</span>
+                </div>
+              ) : (
+                <Select value={selectedPosition} onValueChange={handlePositionChange}>
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All</SelectItem>
+                    {availableJobRequirements.map((job) => (
+                      <SelectItem key={job.id} value={job.position_name}>
+                        {job.position_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Available Panelists Display */}
-        {availablePanelists.length > 0 && (
+        {displayedPanelists.length > 0 && (
           <Card className="border-blue-200 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b p-3 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -832,14 +961,17 @@ const InterviewScheduler = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {filteredPanelists.map((panelist) => (
                   <div key={panelist.id} className="border border-gray-200 rounded-xl p-3 sm:p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{panelist.name}</h3>
-                        <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 mt-1 truncate">
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{panelist.email}</span>
-                        </p>
-                      </div>
+                     <div className="flex items-start justify-between mb-3">
+                       <div className="flex-1 min-w-0">
+                         <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{panelist.name}</h3>
+                         <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-1 mt-1 truncate">
+                           <Mail className="w-3 h-3 flex-shrink-0" />
+                           <span className="truncate">{panelist.email}</span>
+                         </p>
+                         <p className="text-xs sm:text-sm text-blue-600 font-medium mt-1">
+                           Position: {panelist.position_name}
+                         </p>
+                       </div>
                       <Button
                         onClick={() => deletePanelist(panelist.id)}
                         disabled={deletingPanelist[panelist.id]}
@@ -863,31 +995,28 @@ const InterviewScheduler = () => {
                         </div>
                       </div>
                       
-                      <div>
-                        <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Available Days:</p>
-                        <p className="text-xs text-gray-600 mb-2">
-                          {getAvailableDaysDisplay(panelist.availability)}
-                        </p>
-                        <div className="text-xs text-gray-600 space-y-1 max-h-20 overflow-y-auto">
-                          {Object.keys(panelist.availability).map(day => {
-                            if (panelist.availability[day] && panelist.availability[day].length > 0) {
-                              return (
-                                <div key={day} className="flex flex-wrap gap-1 items-center">
-                                  <span className="font-medium text-gray-700 min-w-[35px]">{day}:</span>
-                                  <div className="flex flex-wrap gap-1">
-                                    {panelist.availability[day].map((slot, index) => (
-                                      <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                        {slot.start}-{slot.end}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      </div>
+                       <div>
+                         <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Available Days:</p>
+                         <div className="text-xs text-gray-600 space-y-1 max-h-20 overflow-y-auto">
+                           {Object.keys(panelist.availability).map(day => {
+                             if (panelist.availability[day] && Array.isArray(panelist.availability[day]) && panelist.availability[day].length > 0) {
+                               return (
+                                 <div key={day} className="flex flex-wrap gap-1 items-center">
+                                   <span className="font-medium text-gray-700 min-w-[35px]">{day}:</span>
+                                   <div className="flex flex-wrap gap-1">
+                                     {panelist.availability[day].map((timeSlot, index) => (
+                                       <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                         {timeSlot}
+                                       </span>
+                                     ))}
+                                   </div>
+                                 </div>
+                               );
+                             }
+                             return null;
+                           })}
+                         </div>
+                       </div>
                     </div>
                   </div>
                 ))}

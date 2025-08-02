@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, X, Check, AlertCircle, Search, Filter, Users, Send, ArrowRight, FileText, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from "@/hooks/use-toast";
+import { API_ENDPOINTS } from '@/config/api';
 import ExpandableText from './ExpandableText';
 
 interface JobRequirements {
@@ -34,6 +36,16 @@ interface ResumeAnalysis {
   worked_on: string;
 }
 
+interface JobRequirement {
+  id: number;
+  position_name: string;
+  description: string;
+  skills: string[];
+  tech_stack: string[];
+  experience_required: number;
+  created_at: string;
+}
+
 interface SmartResumeFilterProps {
   showOnlyRequirements?: boolean;
 }
@@ -56,7 +68,45 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
   const [analyses, setAnalyses] = useState<ResumeAnalysis[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [savingCandidates, setSavingCandidates] = useState<Record<string, boolean>>({});
+  const [availableJobRequirements, setAvailableJobRequirements] = useState<JobRequirement[]>([]);
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string>('');
+  const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
   const { toast } = useToast();
+
+  // Fetch job requirements when the component mounts and when showOnlyRequirements is false
+  useEffect(() => {
+    if (!showOnlyRequirements) {
+      fetchJobRequirements();
+    }
+  }, [showOnlyRequirements]);
+
+  const fetchJobRequirements = async () => {
+    setLoadingJobRequirements(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.JOB_REQUIREMENTS);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableJobRequirements(data);
+        console.log('Job requirements fetched:', data);
+      } else {
+        console.error('Failed to fetch job requirements:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch job requirements. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching job requirements:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching job requirements. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingJobRequirements(false);
+    }
+  };
 
   const addSkill = () => {
     if (skillInput.trim() && !jobRequirements.requiredSkills.includes(skillInput.trim())) {
@@ -163,11 +213,12 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
       reason: analysis.reason,
       resume_skills: analysis.resume_skills,
       shortlisted: analysis.shortlisted,
-      worked_on: analysis.worked_on
+      worked_on: analysis.worked_on,
+      shortlisted_position_name: selectedJobTitle || uploadJobTitle.trim() || jobRequirements.jobTitle.trim()
     };
 
     try {
-      const response = await fetch('http://localhost:5000/shortlist-resume/save', {
+      const response = await fetch(API_ENDPOINTS.SAVE_SHORTLISTED_RESUME, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,11 +273,11 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
       return;
     }
     
-    const jobTitleToUse = uploadJobTitle.trim() || jobRequirements.jobTitle.trim();
+    const jobTitleToUse = selectedJobTitle || uploadJobTitle.trim() || jobRequirements.jobTitle.trim();
     if (!jobTitleToUse) {
       toast({
         title: "Validation Error",
-        description: "Please enter a job title",
+        description: "Please select a job position",
         variant: "destructive"
       });
       return;
@@ -306,7 +357,7 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
     return b.experience_years - a.experience_years;
   });
 
-  const canAnalyze = resumes.length > 0 && (uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
+  const canAnalyze = resumes.length > 0 && (selectedJobTitle.length > 0 || uploadJobTitle.trim().length > 0 || jobRequirements.jobTitle.trim().length > 0);
 
   if (showOnlyRequirements) {
     return (
@@ -460,16 +511,29 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
             <CardContent className="space-y-6 mt-6">
               <div>
                 <Label className="text-sm font-medium">Job Title for Analysis</Label>
-                <Input
-                  placeholder="Enter job title or leave empty to use requirement above"
-                  value={uploadJobTitle}
-                  onChange={(e) => setUploadJobTitle(e.target.value)}
-                  className="mt-2"
-                />
+                {loadingJobRequirements ? (
+                  <div className="flex items-center justify-center py-2 mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <span className="text-sm text-gray-500">Loading positions...</span>
+                  </div>
+                ) : (
+                  <Select value={selectedJobTitle} onValueChange={setSelectedJobTitle}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select a job position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableJobRequirements.map((job) => (
+                        <SelectItem key={job.id} value={job.position_name}>
+                          {job.position_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
-                  {jobRequirements.jobTitle.trim() 
-                    ? `Will use "${jobRequirements.jobTitle}" if left empty` 
-                    : 'Required for resume analysis'}
+                  {selectedJobTitle 
+                    ? `Selected: ${selectedJobTitle}` 
+                    : 'Please select a job position for analysis'}
                 </p>
               </div>
 
@@ -527,7 +591,7 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
                   {!canAnalyze && resumes.length > 0 && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-sm text-red-600 text-center">
-                        Please enter a job title above or in the Job Requirements section
+                        Please select a job position from the dropdown above
                       </p>
                     </div>
                   )}

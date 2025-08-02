@@ -16,5 +16,7 @@ export const API_ENDPOINTS = {
   DELETE_PANELIST: (panelistId: number) => `${API_BASE_URL}/panelists/${panelistId}`,
   CHECK_AVAILABILITY: (panelistId: number, date: string, startTime: string, endTime: string) => 
     `${API_BASE_URL}/check-availability?panelist_id=${panelistId}&date=${date}&start_time=${startTime}&end_time=${endTime}`,
-  ASSIGN_PANEL: `${API_BASE_URL}/assign-panel`
+  ASSIGN_PANEL: `${API_BASE_URL}/assign-panel`,
+  JOB_REQUIREMENTS: `${API_BASE_URL}/job-requirements`,
+  SAVE_SHORTLISTED_RESUME: `${API_BASE_URL}/shortlist-resume/save`
 };

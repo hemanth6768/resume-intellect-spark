@@ -887,7 +887,7 @@ const InterviewScheduler = () => {
               <CardTitle className="text-lg sm:text-xl text-gray-800">Data Management</CardTitle>
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
                 <Button
-                  onClick={fetchPanelists}
+                  onClick={() => fetchPanelistsByPosition(selectedPosition)}
                   disabled={loadingPanelists}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >

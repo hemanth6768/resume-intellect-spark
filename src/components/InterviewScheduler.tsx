@@ -1112,32 +1112,169 @@ const InterviewScheduler = () => {
               <div className="space-y-4 sm:space-y-6">
                 {filteredResumes.map((resume) => (
                   <div key={resume.id} className="border border-gray-200 rounded-xl p-4 sm:p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{resume.candidate_name}</h3>
-                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{resume.candidate_email}</span>
-                        </p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-sm text-gray-600">{resume.experience} years experience</span>
-                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
-                            {resume.shortlisted_position_name}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          onClick={() => deleteResume(resume.id.toString())}
-                          disabled={deletingResume[resume.id.toString()]}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                        >
-                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                     <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
+                       <div className="flex-1 min-w-0">
+                         <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{resume.candidate_name}</h3>
+                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                           <Mail className="w-3 h-3 flex-shrink-0" />
+                           <span className="truncate">{resume.candidate_email}</span>
+                         </p>
+                         <div className="flex items-center gap-3 mt-2">
+                           <span className="text-sm text-gray-600">{resume.experience} years experience</span>
+                           <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                             {resume.shortlisted_position_name}
+                           </span>
+                           {resume.assigned_panelist && (
+                             <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                               Assigned
+                             </span>
+                           )}
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-2 flex-shrink-0">
+                         <Button
+                           onClick={() => deleteResume(resume.id.toString())}
+                           disabled={deletingResume[resume.id.toString()]}
+                           variant="outline"
+                           size="sm"
+                           className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                         >
+                           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                         </Button>
+                       </div>
+                     </div>
+
+                     {/* Interview Scheduling Section */}
+                     {!resume.assigned_panelist && (
+                       <div className="border-t pt-4 mt-4 space-y-4">
+                         <h4 className="font-medium text-gray-800">Schedule Interview</h4>
+                         
+                         {/* Date Selection */}
+                         <div className="flex flex-col sm:flex-row gap-3 items-start">
+                           <div className="flex-1">
+                             <Label className="text-sm font-medium text-gray-700">Select Interview Date</Label>
+                             <Popover>
+                               <PopoverTrigger asChild>
+                                 <Button
+                                   variant="outline"
+                                   className={cn(
+                                     "w-full justify-start text-left font-normal mt-1",
+                                     !selectedDates[resume.id.toString()] && "text-muted-foreground"
+                                   )}
+                                 >
+                                   <CalendarIcon className="mr-2 h-4 w-4" />
+                                   {selectedDates[resume.id.toString()] ? (
+                                     format(selectedDates[resume.id.toString()], "PPP")
+                                   ) : (
+                                     <span>Pick a date</span>
+                                   )}
+                                 </Button>
+                               </PopoverTrigger>
+                               <PopoverContent className="w-auto p-0" align="start">
+                                 <CalendarComponent
+                                   mode="single"
+                                   selected={selectedDates[resume.id.toString()]}
+                                   onSelect={(date) => {
+                                     if (date) {
+                                       setSelectedDates(prev => ({
+                                         ...prev,
+                                         [resume.id.toString()]: date
+                                       }));
+                                     }
+                                   }}
+                                   disabled={(date) => date < new Date()}
+                                   initialFocus
+                                 />
+                               </PopoverContent>
+                             </Popover>
+                           </div>
+                           
+                           {/* Check Availability Button */}
+                           <div className="flex-shrink-0 pt-6">
+                             <Button
+                               onClick={() => {
+                                 if (selectedDates[resume.id.toString()]) {
+                                   checkAvailabilityForDate(resume.id.toString(), selectedDates[resume.id.toString()]);
+                                 }
+                               }}
+                               disabled={!selectedDates[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
+                               className="bg-blue-600 hover:bg-blue-700"
+                             >
+                               {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}
+                             </Button>
+                           </div>
+                         </div>
+
+                         {/* Available Panelists */}
+                         {availablePanelistsForDate[resume.id.toString()]?.length > 0 && (
+                           <div className="space-y-3">
+                             <h5 className="font-medium text-gray-700">Available Panelists</h5>
+                             <div className="grid gap-3">
+                               {availablePanelistsForDate[resume.id.toString()].map((panelist) => (
+                                 <div key={panelist.id} className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+                                   <div className="flex items-center justify-between">
+                                     <div className="flex-1">
+                                       <p className="font-medium text-gray-800">{panelist.name}</p>
+                                       <p className="text-sm text-gray-600">{panelist.email}</p>
+                                       <div className="flex flex-wrap gap-1 mt-1">
+                                         {panelist.skills.map((skill) => (
+                                           <span key={skill} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                             {skill}
+                                           </span>
+                                         ))}
+                                       </div>
+                                       {panelist.availableSlots && (
+                                         <div className="mt-2">
+                                           <p className="text-sm font-medium text-gray-700">Available Slots:</p>
+                                           <div className="flex flex-wrap gap-1 mt-1">
+                                             {panelist.availableSlots.map((slot, index) => (
+                                               <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                                                 {slot.start_time} - {slot.end_time}
+                                               </span>
+                                             ))}
+                                           </div>
+                                         </div>
+                                       )}
+                                     </div>
+                                     <div className="flex flex-col gap-2 ml-3">
+                                       {panelist.availableSlots?.map((slot, index) => (
+                                         <Button
+                                           key={index}
+                                           onClick={() => assignPanelistToResume(resume.id.toString(), panelist.id.toString(), slot)}
+                                           disabled={assigningPanelist[resume.id.toString()]}
+                                           size="sm"
+                                           className="bg-green-600 hover:bg-green-700 text-xs"
+                                         >
+                                           {assigningPanelist[resume.id.toString()] ? 'Assigning...' : `Assign ${slot.start_time}-${slot.end_time}`}
+                                         </Button>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
+                         )}
+
+                         {/* No Available Panelists Message */}
+                         {selectedDates[resume.id.toString()] && !checkingAvailability[resume.id.toString()] && 
+                          availablePanelistsForDate[resume.id.toString()]?.length === 0 && (
+                           <div className="text-sm text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                             No panelists available for {format(selectedDates[resume.id.toString()], "PPP")}. Please try a different date.
+                           </div>
+                         )}
+                       </div>
+                     )}
+
+                     {/* Show Assigned Panelist Info */}
+                     {resume.assigned_panelist && (
+                       <div className="border-t pt-4 mt-4">
+                         <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                           <p className="text-sm font-medium text-green-800">Interview Scheduled</p>
+                           <p className="text-sm text-green-700">This candidate has been assigned to a panelist. Check the Interview Sessions tab for details.</p>
+                         </div>
+                       </div>
+                     )}
                   </div>
                 ))}
               </div>

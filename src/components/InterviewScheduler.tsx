@@ -48,6 +48,7 @@ interface ShortlistedResume {
   candidate_type: string;
   experience: number;
   shortlisted: boolean;
+  shortlisted_position_name: string;
   assigned_panelist?: string;
 }
 
@@ -133,6 +134,7 @@ const InterviewScheduler = () => {
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
   const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
   const [displayedPanelists, setDisplayedPanelists] = useState<PanelistWithPosition[]>([]);
+  const [activeDataType, setActiveDataType] = useState<'panelists' | 'resumes' | 'sessions' | null>(null);
   const { toast } = useToast();
 
   // Fetch job requirements when component mounts
@@ -208,7 +210,31 @@ const InterviewScheduler = () => {
   // Handle position selection change
   const handlePositionChange = (value: string) => {
     setSelectedPosition(value);
-    fetchPanelistsByPosition(value);
+    
+    // Call appropriate function based on active data type
+    if (activeDataType === 'panelists') {
+      fetchPanelistsByPosition(value);
+    } else if (activeDataType === 'resumes') {
+      fetchShortlistedResumesByPosition(value);
+    } else if (activeDataType === 'sessions') {
+      fetchInterviewSessions();
+    }
+  };
+
+  // Button click handlers
+  const handleLoadPanelists = () => {
+    setActiveDataType('panelists');
+    fetchPanelistsByPosition(selectedPosition);
+  };
+
+  const handleLoadResumes = () => {
+    setActiveDataType('resumes');
+    fetchShortlistedResumesByPosition(selectedPosition);
+  };
+
+  const handleLoadSessions = () => {
+    setActiveDataType('sessions');
+    fetchInterviewSessions();
   };
   
   const [newPanelist, setNewPanelist] = useState({
@@ -279,7 +305,8 @@ const InterviewScheduler = () => {
   const filteredResumes = shortlistedResumes.filter(resume =>
     resume.candidate_name.toLowerCase().includes(resumeSearch.toLowerCase()) ||
     resume.candidate_email.toLowerCase().includes(resumeSearch.toLowerCase()) ||
-    resume.candidate_type.toLowerCase().includes(resumeSearch.toLowerCase())
+    resume.candidate_type.toLowerCase().includes(resumeSearch.toLowerCase()) ||
+    resume.shortlisted_position_name.toLowerCase().includes(resumeSearch.toLowerCase())
   );
 
   // Delete functions
@@ -642,6 +669,43 @@ const InterviewScheduler = () => {
     }
   };
 
+  const fetchShortlistedResumesByPosition = async (positionName: string) => {
+    setLoadingResumes(true);
+    try {
+      let url = API_ENDPOINTS.SHORTLISTED_RESUMES;
+      if (positionName !== 'All') {
+        url += `?shortlisted_position_name=${encodeURIComponent(positionName)}`;
+      }
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setShortlistedResumes(data);
+        console.log('Shortlisted resumes fetched for position:', positionName, data);
+        toast({
+          title: "Success!",
+          description: `Found ${data.length} shortlisted resumes for ${positionName === 'All' ? 'all positions' : positionName}!`,
+        });
+      } else {
+        console.error('Failed to fetch shortlisted resumes:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch shortlisted resumes. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching shortlisted resumes:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching shortlisted resumes. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingResumes(false);
+    }
+  };
+
   const fetchInterviewSessions = async () => {
     setLoadingSessions(true);
     try {
@@ -887,7 +951,7 @@ const InterviewScheduler = () => {
               <CardTitle className="text-lg sm:text-xl text-gray-800">Data Management</CardTitle>
               <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
                 <Button
-                  onClick={() => fetchPanelistsByPosition(selectedPosition)}
+                  onClick={handleLoadPanelists}
                   disabled={loadingPanelists}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
@@ -895,7 +959,7 @@ const InterviewScheduler = () => {
                   {loadingPanelists ? 'Loading...' : 'Load Panelists'}
                 </Button>
                 <Button
-                  onClick={fetchShortlistedResumes}
+                  onClick={handleLoadResumes}
                   disabled={loadingResumes}
                   className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
@@ -903,7 +967,7 @@ const InterviewScheduler = () => {
                   {loadingResumes ? 'Loading...' : 'Shortlisted Resumes'}
                 </Button>
                 <Button
-                  onClick={fetchInterviewSessions}
+                  onClick={handleLoadSessions}
                   disabled={loadingSessions}
                   className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 shadow-sm text-xs sm:text-sm w-full sm:w-auto"
                 >
@@ -914,29 +978,31 @@ const InterviewScheduler = () => {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <Label className="text-sm font-medium whitespace-nowrap">Filter by Position:</Label>
-              {loadingJobRequirements ? (
-                <div className="flex items-center">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                  <span className="text-sm text-gray-500">Loading positions...</span>
-                </div>
-              ) : (
-                <Select value={selectedPosition} onValueChange={handlePositionChange}>
-                  <SelectTrigger className="w-full sm:w-64">
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All</SelectItem>
-                    {availableJobRequirements.map((job) => (
-                      <SelectItem key={job.id} value={job.position_name}>
-                        {job.position_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            {activeDataType && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <Label className="text-sm font-medium whitespace-nowrap">Filter by Position:</Label>
+                {loadingJobRequirements ? (
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <span className="text-sm text-gray-500">Loading positions...</span>
+                  </div>
+                ) : (
+                  <Select value={selectedPosition} onValueChange={handlePositionChange}>
+                    <SelectTrigger className="w-full sm:w-64">
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {availableJobRequirements.map((job) => (
+                        <SelectItem key={job.id} value={job.position_name}>
+                          {job.position_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -1055,8 +1121,8 @@ const InterviewScheduler = () => {
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-sm text-gray-600">{resume.experience} years experience</span>
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                            {resume.candidate_type}
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                            {resume.shortlisted_position_name}
                           </span>
                         </div>
                       </div>
@@ -1070,13 +1136,6 @@ const InterviewScheduler = () => {
                         >
                           <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          resume.shortlisted 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {resume.shortlisted ? 'Shortlisted' : 'Not Shortlisted'}
-                        </span>
                       </div>
                     </div>
                   </div>

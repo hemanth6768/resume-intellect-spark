@@ -123,6 +123,9 @@ const InterviewScheduler = () => {
   const [addingPanelist, setAddingPanelist] = useState(false);
   const [assigningPanelist, setAssigningPanelist] = useState<Record<string, boolean>>({});
   const [selectedDates, setSelectedDates] = useState<Record<string, Date>>({});
+  const [selectedPanelists, setSelectedPanelists] = useState<Record<string, string>>({});
+  const [availablePanelistsForPosition, setAvailablePanelistsForPosition] = useState<PanelistWithPosition[]>([]);
+  const [loadingPanelistsForPosition, setLoadingPanelistsForPosition] = useState(false);
   const [availablePanelistsForDate, setAvailablePanelistsForDate] = useState<Record<string, PanelistWithAvailability[]>>({});
   const [checkingAvailability, setCheckingAvailability] = useState<Record<string, boolean>>({});
   const [deletingPanelist, setDeletingPanelist] = useState<Record<number, boolean>>({});
@@ -216,6 +219,10 @@ const InterviewScheduler = () => {
       fetchPanelistsByPosition(value);
     } else if (activeDataType === 'resumes') {
       fetchShortlistedResumesByPosition(value);
+      // Also fetch panelists for the dropdown when filtering resumes
+      if (value !== 'All') {
+        fetchPanelistsForPosition(value);
+      }
     } else if (activeDataType === 'sessions') {
       fetchInterviewSessions();
     }
@@ -230,6 +237,10 @@ const InterviewScheduler = () => {
   const handleLoadResumes = () => {
     setActiveDataType('resumes');
     fetchShortlistedResumesByPosition(selectedPosition);
+    // Also fetch panelists for the dropdown
+    if (selectedPosition !== 'All') {
+      fetchPanelistsForPosition(selectedPosition);
+    }
   };
 
   const handleLoadSessions = () => {
@@ -666,6 +677,35 @@ const InterviewScheduler = () => {
       });
     } finally {
       setLoadingResumes(false);
+    }
+  };
+
+  const fetchPanelistsForPosition = async (positionName: string) => {
+    setLoadingPanelistsForPosition(true);
+    try {
+      const url = `${API_ENDPOINTS.PANELISTS}?position_name=${encodeURIComponent(positionName)}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailablePanelistsForPosition(data);
+        console.log('Panelists fetched for position dropdown:', positionName, data);
+      } else {
+        console.error('Failed to fetch panelists for position:', response.statusText);
+        toast({
+          title: "Error",
+          description: "Failed to fetch panelists for position. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching panelists for position:', error);
+      toast({
+        title: "Network Error",
+        description: "Error fetching panelists for position. Please check your connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPanelistsForPosition(false);
     }
   };
 
@@ -1147,12 +1187,46 @@ const InterviewScheduler = () => {
                      {/* Interview Scheduling Section */}
                      {!resume.assigned_panelist && (
                        <div className="border-t pt-4 mt-4 space-y-4">
-                         <h4 className="font-medium text-gray-800">Schedule Interview</h4>
-                         
-                         {/* Date Selection */}
-                         <div className="flex flex-col sm:flex-row gap-3 items-start">
-                           <div className="flex-1">
-                             <Label className="text-sm font-medium text-gray-700">Select Interview Date</Label>
+                          <h4 className="font-medium text-gray-800">Schedule Interview</h4>
+                          
+                          {/* Panelist Selection */}
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">Select Panelist</Label>
+                              {loadingPanelistsForPosition ? (
+                                <div className="flex items-center mt-1">
+                                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                                  <span className="text-sm text-gray-500">Loading panelists...</span>
+                                </div>
+                              ) : (
+                                <Select 
+                                  value={selectedPanelists[resume.id.toString()] || ""} 
+                                  onValueChange={(value) => {
+                                    setSelectedPanelists(prev => ({
+                                      ...prev,
+                                      [resume.id.toString()]: value
+                                    }));
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full mt-1">
+                                    <SelectValue placeholder="Choose a panelist" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availablePanelistsForPosition.map((panelist) => (
+                                      <SelectItem key={panelist.id} value={panelist.id.toString()}>
+                                        {panelist.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Date Selection */}
+                          <div className="flex flex-col sm:flex-row gap-3 items-start">
+                            <div className="flex-1">
+                              <Label className="text-sm font-medium text-gray-700">Select Interview Date</Label>
                              <Popover>
                                <PopoverTrigger asChild>
                                  <Button
@@ -1189,20 +1263,20 @@ const InterviewScheduler = () => {
                              </Popover>
                            </div>
                            
-                           {/* Check Availability Button */}
-                           <div className="flex-shrink-0 pt-6">
-                             <Button
-                               onClick={() => {
-                                 if (selectedDates[resume.id.toString()]) {
-                                   checkAvailabilityForDate(resume.id.toString(), selectedDates[resume.id.toString()]);
-                                 }
-                               }}
-                               disabled={!selectedDates[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
-                               className="bg-blue-600 hover:bg-blue-700"
-                             >
-                               {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}
-                             </Button>
-                           </div>
+                            {/* Check Availability Button */}
+                            <div className="flex-shrink-0 pt-6">
+                              <Button
+                                onClick={() => {
+                                  if (selectedDates[resume.id.toString()]) {
+                                    checkAvailabilityForDate(resume.id.toString(), selectedDates[resume.id.toString()]);
+                                  }
+                                }}
+                                disabled={!selectedDates[resume.id.toString()] || !selectedPanelists[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}
+                              </Button>
+                            </div>
                          </div>
 
                          {/* Available Panelists */}
@@ -1256,13 +1330,20 @@ const InterviewScheduler = () => {
                            </div>
                          )}
 
-                         {/* No Available Panelists Message */}
-                         {selectedDates[resume.id.toString()] && !checkingAvailability[resume.id.toString()] && 
-                          availablePanelistsForDate[resume.id.toString()]?.length === 0 && (
-                           <div className="text-sm text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                             No panelists available for {format(selectedDates[resume.id.toString()], "PPP")}. Please try a different date.
-                           </div>
-                         )}
+                          {/* Selection Reminder */}
+                          {!selectedPanelists[resume.id.toString()] && (
+                            <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                              Please select a panelist before checking availability.
+                            </div>
+                          )}
+
+                          {/* No Available Panelists Message */}
+                          {selectedDates[resume.id.toString()] && !checkingAvailability[resume.id.toString()] && 
+                           availablePanelistsForDate[resume.id.toString()]?.length === 0 && (
+                            <div className="text-sm text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                              No panelists available for {format(selectedDates[resume.id.toString()], "PPP")}. Please try a different date.
+                            </div>
+                          )}
                        </div>
                      )}
 

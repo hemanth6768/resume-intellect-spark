@@ -133,6 +133,8 @@ const InterviewScheduler = () => {
   const [deletingSession, setDeletingSession] = useState<Record<number, boolean>>({});
   const [panelistSearch, setPanelistSearch] = useState('');
   const [resumeSearch, setResumeSearch] = useState('');
+  const [startTimes, setStartTimes] = useState<Record<string, string>>({});
+  const [endTimes, setEndTimes] = useState<Record<string, string>>({});
   const [availableJobRequirements, setAvailableJobRequirements] = useState<JobRequirement[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<string>('All');
   const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
@@ -778,65 +780,82 @@ const InterviewScheduler = () => {
     }
   };
 
-  const checkAvailabilityForDate = async (resumeId: string, date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+  const checkAvailabilityForDate = async (resumeId: string) => {
+    const selectedDate = selectedDates[resumeId];
+    const selectedPanelistId = selectedPanelists[resumeId];
+    const startTime = startTimes[resumeId];
+    const endTime = endTimes[resumeId];
+
+    if (!selectedDate || !selectedPanelistId || !startTime || !endTime) {
+      toast({
+        title: "Missing Information",
+        description: "Please select date, panelist, start time, and end time.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const selectedPanelist = availablePanelistsForPosition.find(p => p.id.toString() === selectedPanelistId);
+    
+    if (!selectedPanelist) {
+      toast({
+        title: "Error",
+        description: "Selected panelist not found.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setCheckingAvailability(prev => ({ ...prev, [resumeId]: true }));
 
     try {
-      const availablePanelistsForSelectedDate: PanelistWithAvailability[] = [];
+      const payload = {
+        panelist_name: selectedPanelist.name,
+        date: dateStr,
+        start_time: startTime,
+        end_time: endTime
+      };
 
-      for (const panelist of availablePanelists) {
-        // Get the day of the week from the date
-        const dayOfWeek = format(date, 'EEE'); // Get short day name (Mon, Tue, etc.)
-        
-        // Check if panelist has availability for this day
-        if (panelist.availability[dayOfWeek] && panelist.availability[dayOfWeek].length > 0) {
-          // Check availability for each time slot
-          const availableSlots = [];
-          
-          for (const slot of panelist.availability[dayOfWeek]) {
-            try {
-              const response = await fetch(
-                API_ENDPOINTS.CHECK_AVAILABILITY(panelist.id, dateStr, slot.start, slot.end)
-              );
-              if (response.ok) {
-                const data = await response.json();
-                console.log(`Availability check for panelist ${panelist.id}, slot ${slot.start}-${slot.end}:`, data);
-                if (data.available) {
-                  availableSlots.push({
-                    start_time: slot.start,
-                    end_time: slot.end
-                  });
-                }
-              }
-            } catch (error) {
-              console.error(`Error checking availability for panelist ${panelist.id}, slot ${slot.start}-${slot.end}:`, error);
-            }
-          }
-          
-          if (availableSlots.length > 0) {
-            availablePanelistsForSelectedDate.push({
-              ...panelist,
-              availableSlots: availableSlots
-            });
-          }
-        }
-      }
+      console.log('Checking availability with payload:', payload);
 
-      setAvailablePanelistsForDate(prev => ({
-        ...prev,
-        [resumeId]: availablePanelistsForSelectedDate
-      }));
-
-      toast({
-        title: "Availability Check Complete",
-        description: `Found ${availablePanelistsForSelectedDate.length} available panelists for ${format(date, 'PPP')}`,
+      const response = await fetch('http://localhost:5000/check-availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Availability check response:', data);
+        
+        if (data.available) {
+          toast({
+            title: "Available!",
+            description: `${selectedPanelist.name} is available on ${format(selectedDate, 'PPP')} from ${startTime} to ${endTime}`,
+          });
+        } else {
+          toast({
+            title: "Not Available",
+            description: `${selectedPanelist.name} is not available during the selected time slot.`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to check availability.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error checking availability:', error);
       toast({
-        title: "Error",
-        description: "Failed to check panelist availability.",
+        title: "Network Error",
+        description: "Failed to check panelist availability. Please check your connection.",
         variant: "destructive"
       });
     } finally {
@@ -1224,54 +1243,85 @@ const InterviewScheduler = () => {
                           </div>
 
                           {/* Date Selection */}
-                          <div className="flex flex-col sm:flex-row gap-3 items-start">
-                            <div className="flex-1">
-                              <Label className="text-sm font-medium text-gray-700">Select Interview Date</Label>
-                             <Popover>
-                               <PopoverTrigger asChild>
-                                 <Button
-                                   variant="outline"
-                                   className={cn(
-                                     "w-full justify-start text-left font-normal mt-1",
-                                     !selectedDates[resume.id.toString()] && "text-muted-foreground"
-                                   )}
-                                 >
-                                   <CalendarIcon className="mr-2 h-4 w-4" />
-                                   {selectedDates[resume.id.toString()] ? (
-                                     format(selectedDates[resume.id.toString()], "PPP")
-                                   ) : (
-                                     <span>Pick a date</span>
-                                   )}
-                                 </Button>
-                               </PopoverTrigger>
-                               <PopoverContent className="w-auto p-0" align="start">
-                                 <CalendarComponent
-                                   mode="single"
-                                   selected={selectedDates[resume.id.toString()]}
-                                   onSelect={(date) => {
-                                     if (date) {
-                                       setSelectedDates(prev => ({
-                                         ...prev,
-                                         [resume.id.toString()]: date
-                                       }));
-                                     }
-                                   }}
-                                   disabled={(date) => date < new Date()}
-                                   initialFocus
-                                 />
-                               </PopoverContent>
-                             </Popover>
+                          <div className="space-y-3">
+                            <div className="flex flex-col sm:flex-row gap-3 items-start">
+                              <div className="flex-1">
+                                <Label className="text-sm font-medium text-gray-700">Select Interview Date</Label>
+                               <Popover>
+                                 <PopoverTrigger asChild>
+                                   <Button
+                                     variant="outline"
+                                     className={cn(
+                                       "w-full justify-start text-left font-normal mt-1",
+                                       !selectedDates[resume.id.toString()] && "text-muted-foreground"
+                                     )}
+                                   >
+                                     <CalendarIcon className="mr-2 h-4 w-4" />
+                                     {selectedDates[resume.id.toString()] ? (
+                                       format(selectedDates[resume.id.toString()], "PPP")
+                                     ) : (
+                                       <span>Pick a date</span>
+                                     )}
+                                   </Button>
+                                 </PopoverTrigger>
+                                 <PopoverContent className="w-auto p-0" align="start">
+                                   <CalendarComponent
+                                     mode="single"
+                                     selected={selectedDates[resume.id.toString()]}
+                                     onSelect={(date) => {
+                                       if (date) {
+                                         setSelectedDates(prev => ({
+                                           ...prev,
+                                           [resume.id.toString()]: date
+                                         }));
+                                       }
+                                     }}
+                                     disabled={(date) => date < new Date()}
+                                     initialFocus
+                                     className="pointer-events-auto"
+                                   />
+                                 </PopoverContent>
+                               </Popover>
+                             </div>
+                           </div>
+
+                           {/* Time Selection */}
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                             <div>
+                               <Label className="text-sm font-medium text-gray-700">Start Time</Label>
+                               <Input
+                                 type="time"
+                                 value={startTimes[resume.id.toString()] || "10:00"}
+                                 onChange={(e) => {
+                                   setStartTimes(prev => ({
+                                     ...prev,
+                                     [resume.id.toString()]: e.target.value
+                                   }));
+                                 }}
+                                 className="mt-1"
+                               />
+                             </div>
+                             <div>
+                               <Label className="text-sm font-medium text-gray-700">End Time</Label>
+                               <Input
+                                 type="time"
+                                 value={endTimes[resume.id.toString()] || "11:00"}
+                                 onChange={(e) => {
+                                   setEndTimes(prev => ({
+                                     ...prev,
+                                     [resume.id.toString()]: e.target.value
+                                   }));
+                                 }}
+                                 className="mt-1"
+                               />
+                             </div>
                            </div>
                            
                             {/* Check Availability Button */}
-                            <div className="flex-shrink-0 pt-6">
+                            <div className="flex justify-center">
                               <Button
-                                onClick={() => {
-                                  if (selectedDates[resume.id.toString()]) {
-                                    checkAvailabilityForDate(resume.id.toString(), selectedDates[resume.id.toString()]);
-                                  }
-                                }}
-                                disabled={!selectedDates[resume.id.toString()] || !selectedPanelists[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
+                                onClick={() => checkAvailabilityForDate(resume.id.toString())}
+                                disabled={!selectedDates[resume.id.toString()] || !selectedPanelists[resume.id.toString()] || !startTimes[resume.id.toString()] || !endTimes[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
                                 className="bg-blue-600 hover:bg-blue-700"
                               >
                                 {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}

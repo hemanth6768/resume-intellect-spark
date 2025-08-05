@@ -140,6 +140,8 @@ const InterviewScheduler = () => {
   const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
   const [displayedPanelists, setDisplayedPanelists] = useState<PanelistWithPosition[]>([]);
   const [activeDataType, setActiveDataType] = useState<'panelists' | 'resumes' | 'sessions' | null>(null);
+  const [availabilityResults, setAvailabilityResults] = useState<Record<string, { available: boolean; message: string }>>({});
+  const [schedulingInterview, setSchedulingInterview] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   // Fetch job requirements when component mounts
@@ -831,6 +833,17 @@ const InterviewScheduler = () => {
         const data = await response.json();
         console.log('Availability check response:', data);
         
+        // Store availability result for this resume
+        setAvailabilityResults(prev => ({
+          ...prev,
+          [resumeId]: {
+            available: data.available,
+            message: data.available 
+              ? `${selectedPanelist.name} is available on ${format(selectedDate, 'PPP')} from ${startTime} to ${endTime}`
+              : `${selectedPanelist.name} is not available during the selected time slot.`
+          }
+        }));
+        
         if (data.available) {
           toast({
             title: "Available!",
@@ -860,6 +873,120 @@ const InterviewScheduler = () => {
       });
     } finally {
       setCheckingAvailability(prev => ({ ...prev, [resumeId]: false }));
+    }
+  };
+
+  const scheduleInterview = async (resumeId: string) => {
+    const resume = shortlistedResumes.find(r => r.id.toString() === resumeId);
+    const selectedPanelistId = selectedPanelists[resumeId];
+    const selectedDate = selectedDates[resumeId];
+    const startTime = startTimes[resumeId];
+    const endTime = endTimes[resumeId];
+
+    if (!resume || !selectedPanelistId || !selectedDate || !startTime || !endTime) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields before scheduling.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const selectedPanelist = availablePanelistsForPosition.find(p => p.id.toString() === selectedPanelistId);
+    if (!selectedPanelist) {
+      toast({
+        title: "Error",
+        description: "Selected panelist not found.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSchedulingInterview(prev => ({ ...prev, [resumeId]: true }));
+
+    try {
+      const payload = {
+        candidate_name: resume.candidate_name,
+        panelist_name: selectedPanelist.name,
+        session_date: format(selectedDate, 'yyyy-MM-dd'),
+        session_start: startTime,
+        session_end: endTime
+      };
+
+      console.log('Scheduling interview with payload:', payload);
+
+      const response = await fetch(API_ENDPOINTS.ASSIGN_PANEL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Interview scheduled successfully:', result);
+        
+        // Update local state
+        setShortlistedResumes(prev => prev.map(r => 
+          r.id.toString() === resumeId 
+            ? { ...r, assigned_panelist: selectedPanelistId }
+            : r
+        ));
+
+        // Clear the form data for this resume
+        setSelectedDates(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+        setSelectedPanelists(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+        setStartTimes(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+        setEndTimes(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+        setAvailabilityResults(prev => {
+          const updated = { ...prev };
+          delete updated[resumeId];
+          return updated;
+        });
+
+        toast({
+          title: "Success!",
+          description: `Interview scheduled with ${selectedPanelist.name} for ${resume.candidate_name} on ${format(selectedDate, 'PPP')} from ${startTime} to ${endTime}`,
+        });
+
+        // Refresh interview sessions
+        fetchInterviewSessions();
+      } else {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Failed to schedule interview:', response.status, errorData);
+        
+        toast({
+          title: "Error",
+          description: errorData.message || errorData.error || "Failed to schedule interview.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast({
+        title: "Network Error",
+        description: "Failed to schedule interview. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSchedulingInterview(prev => ({ ...prev, [resumeId]: false }));
     }
   };
 
@@ -1317,16 +1444,45 @@ const InterviewScheduler = () => {
                              </div>
                            </div>
                            
-                            {/* Check Availability Button */}
-                            <div className="flex justify-center">
-                              <Button
-                                onClick={() => checkAvailabilityForDate(resume.id.toString())}
-                                disabled={!selectedDates[resume.id.toString()] || !selectedPanelists[resume.id.toString()] || !startTimes[resume.id.toString()] || !endTimes[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
-                                className="bg-blue-600 hover:bg-blue-700"
-                              >
-                                {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}
-                              </Button>
-                            </div>
+                             {/* Check Availability Button */}
+                             <div className="flex justify-center">
+                               <Button
+                                 onClick={() => checkAvailabilityForDate(resume.id.toString())}
+                                 disabled={!selectedDates[resume.id.toString()] || !selectedPanelists[resume.id.toString()] || !startTimes[resume.id.toString()] || !endTimes[resume.id.toString()] || checkingAvailability[resume.id.toString()]}
+                                 className="bg-blue-600 hover:bg-blue-700"
+                               >
+                                 {checkingAvailability[resume.id.toString()] ? 'Checking...' : 'Check Availability'}
+                               </Button>
+                             </div>
+
+                             {/* Availability Result Message */}
+                             {availabilityResults[resume.id.toString()] && (
+                               <div className={`p-3 rounded-lg border ${
+                                 availabilityResults[resume.id.toString()].available 
+                                   ? 'bg-green-50 border-green-200 text-green-800' 
+                                   : 'bg-red-50 border-red-200 text-red-800'
+                               }`}>
+                                 <p className="text-sm font-medium">
+                                   {availabilityResults[resume.id.toString()].available ? '✅ Available' : '❌ Not Available'}
+                                 </p>
+                                 <p className="text-sm mt-1">
+                                   {availabilityResults[resume.id.toString()].message}
+                                 </p>
+                               </div>
+                             )}
+
+                             {/* Schedule Interview Button */}
+                             {availabilityResults[resume.id.toString()]?.available && (
+                               <div className="flex justify-center">
+                                 <Button
+                                   onClick={() => scheduleInterview(resume.id.toString())}
+                                   disabled={schedulingInterview[resume.id.toString()]}
+                                   className="bg-green-600 hover:bg-green-700"
+                                 >
+                                   {schedulingInterview[resume.id.toString()] ? 'Scheduling...' : 'Schedule Interview'}
+                                 </Button>
+                               </div>
+                             )}
                          </div>
 
                          {/* Available Panelists */}

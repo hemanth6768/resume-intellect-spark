@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { Loader, Users, MessageSquare, User, Mail, Briefcase, Calendar, Target } from 'lucide-react';
+import { Loader, Users, MessageSquare, User, Mail, Briefcase, Calendar, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
 import ExpandableText from './ExpandableText';
 
@@ -53,6 +53,7 @@ const QuestionGenerator = () => {
   const [generatedQuestions, setGeneratedQuestions] = useState<Record<string, GeneratedQuestions>>({});
   const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [expandedQuestions, setExpandedQuestions] = useState<Record<string, Record<string, boolean>>>({});
   const [generatingQuestions, setGeneratingQuestions] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
@@ -176,28 +177,40 @@ const QuestionGenerator = () => {
 
   const renderAnswer = (answer: string | { code?: string; output?: string }) => {
     if (typeof answer === 'string') {
-      return <ExpandableText text={answer} className="text-sm text-muted-foreground" />;
+      return <ExpandableText text={answer} className="text-sm text-muted-foreground mt-2" />;
     } else if (answer && typeof answer === 'object') {
       return (
-        <div className="space-y-2">
+        <div className="space-y-3 mt-2">
           {answer.code && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Code:</p>
-              <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Code Solution:</p>
+              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto border">
                 <code>{answer.code}</code>
               </pre>
             </div>
           )}
           {answer.output && (
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Expected Output:</p>
-              <p className="text-xs text-muted-foreground bg-muted p-2 rounded">{answer.output}</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Expected Output:</p>
+              <div className="bg-gray-100 border border-gray-200 p-3 rounded-lg">
+                <code className="text-sm text-gray-800">{answer.output}</code>
+              </div>
             </div>
           )}
         </div>
       );
     }
     return null;
+  };
+
+  const toggleQuestionExpansion = (candidateKey: string, level: string) => {
+    setExpandedQuestions(prev => ({
+      ...prev,
+      [candidateKey]: {
+        ...prev[candidateKey],
+        [level]: !prev[candidateKey]?.[level]
+      }
+    }));
   };
 
   const getLevelColor = (level: string) => {
@@ -365,26 +378,45 @@ const QuestionGenerator = () => {
                     {hasQuestions && (
                       <div className="mt-4 space-y-3">
                         <h4 className="font-semibold text-sm">Generated Questions:</h4>
-                        {Object.entries(hasQuestions.questions).map(([level, questions]) => (
-                          <div key={level} className={`p-3 rounded-lg border ${getLevelColor(level)}`}>
-                            <h5 className="font-medium text-sm mb-2">{getLevelTitle(level)}</h5>
-                            <div className="space-y-2">
-                              {questions.slice(0, 2).map((q, qIndex) => (
-                                <div key={qIndex} className="bg-white p-2 rounded text-xs">
-                                  <p className="font-medium">{q.question}</p>
-                                  {renderAnswer(q.answer)}
-                                </div>
-                              ))}
-                              {questions.length > 2 && (
-                                <p className="text-xs text-muted-foreground italic">
-                                  +{questions.length - 2} more questions
-                                </p>
-                              )}
+                        {Object.entries(hasQuestions.questions).map(([level, questions]) => {
+                          const isExpanded = expandedQuestions[candidateKey]?.[level] || false;
+                          const questionsToShow = isExpanded ? questions : questions.slice(0, 2);
+                          const remainingCount = questions.length - 2;
+                          
+                          return (
+                            <div key={level} className={`p-4 rounded-lg border ${getLevelColor(level)}`}>
+                              <h5 className="font-medium text-sm mb-3">{getLevelTitle(level)}</h5>
+                              <div className="space-y-4">
+                                {questionsToShow.map((q, qIndex) => (
+                                  <div key={qIndex} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-current">
+                                    <p className="font-medium text-sm leading-relaxed mb-2">{q.question}</p>
+                                    {renderAnswer(q.answer)}
+                                  </div>
+                                ))}
+                                {remainingCount > 0 && (
+                                  <button
+                                    onClick={() => toggleQuestionExpansion(candidateKey, level)}
+                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-3 h-3" />
+                                        Show less
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="w-3 h-3" />
+                                        +{remainingCount} more questions
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {hasQuestions.skills_used && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded">
                             <p className="font-medium">Skills Assessed:</p>
                             <p>{hasQuestions.skills_used}</p>
                           </div>

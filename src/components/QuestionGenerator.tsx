@@ -135,7 +135,7 @@ const QuestionGenerator = () => {
     setGeneratingQuestions(prev => ({ ...prev, [candidateKey]: true }));
 
     try {
-      const response = await fetch('http://localhost:5000/generate-questions', {
+      const response = await fetch('http://localhost:5002/generate-questions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

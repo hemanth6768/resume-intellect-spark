@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '../components/ui/button';
-import ResumeUploader from "../components/ResumeUploader";
+import QuestionGenerator from "../components/QuestionGenerator";
 import SmartResumeFilter from "../components/SmartResumeFilter";
 import InterviewScheduler from "../components/InterviewScheduler";
 import { FileText, MessageSquare, Calendar, Menu, X, Search } from 'lucide-react';
@@ -125,7 +125,7 @@ const Index = () => {
         <div className="flex-1 overflow-auto">
           {activeTab === 'requirements' && <SmartResumeFilter showOnlyRequirements={true} />}
           {activeTab === 'filter' && <SmartResumeFilter showOnlyRequirements={false} />}
-          {activeTab === 'questions' && <ResumeUploader />}
+          {activeTab === 'questions' && <QuestionGenerator />}
           {activeTab === 'scheduler' && <InterviewScheduler />}
         </div>
       </div>

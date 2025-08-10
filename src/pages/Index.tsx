@@ -5,10 +5,11 @@ import QuestionGenerator from "../components/QuestionGenerator";
 import SmartResumeFilter from "../components/SmartResumeFilter";
 import InterviewScheduler from "../components/InterviewScheduler";
 import EmployeeSupport from "../components/EmployeeSupport";
-import { FileText, MessageSquare, Calendar, Menu, X, Search, Users } from 'lucide-react';
+import InterviewAnalysis from "../components/InterviewAnalysis";
+import { FileText, MessageSquare, Calendar, Menu, X, Search, Users, BarChart3 } from 'lucide-react';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'requirements' | 'filter' | 'questions' | 'scheduler' | 'support'>('requirements');
+  const [activeTab, setActiveTab] = useState<'requirements' | 'filter' | 'questions' | 'scheduler' | 'support' | 'analysis'>('requirements');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const menuItems = [
@@ -35,6 +36,12 @@ const Index = () => {
       label: 'Interview Scheduler',
       icon: Calendar,
       description: 'Schedule interviews'
+    },
+    {
+      id: 'analysis' as const,
+      label: 'Interview Analysis',
+      icon: BarChart3,
+      description: 'Assess candidate interviews'
     },
     {
       id: 'support' as const,
@@ -134,6 +141,7 @@ const Index = () => {
           {activeTab === 'filter' && <SmartResumeFilter showOnlyRequirements={false} />}
           {activeTab === 'questions' && <QuestionGenerator />}
           {activeTab === 'scheduler' && <InterviewScheduler />}
+          {activeTab === 'analysis' && <InterviewAnalysis />}
           {activeTab === 'support' && <EmployeeSupport />}
         </div>
       </div>

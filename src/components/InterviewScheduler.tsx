@@ -274,8 +274,19 @@ const InterviewScheduler = () => {
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+  // Helper function to normalize time slot format (handles both string and object formats)
+  const normalizeTimeSlot = (timeSlot: any): string => {
+    if (typeof timeSlot === 'string') {
+      return timeSlot;
+    }
+    if (typeof timeSlot === 'object' && timeSlot.start && timeSlot.end) {
+      return `${timeSlot.start}-${timeSlot.end}`;
+    }
+    return 'Invalid time slot';
+  };
+
   // Helper function to get available days from API response
-  const getAvailableDaysDisplay = (availability: { [key: string]: TimeSlot[] }) => {
+  const getAvailableDaysDisplay = (availability: { [key: string]: any[] }) => {
     if (!availability || typeof availability !== 'object') {
       return 'No availability set';
     }
@@ -292,7 +303,7 @@ const InterviewScheduler = () => {
   };
 
   // Helper function to get time range from availability
-  const getTimeRangesDisplay = (availability: { [key: string]: TimeSlot[] }) => {
+  const getTimeRangesDisplay = (availability: { [key: string]: any[] }) => {
     if (!availability || typeof availability !== 'object') {
       return '';
     }
@@ -301,7 +312,8 @@ const InterviewScheduler = () => {
     Object.keys(availability).forEach(day => {
       if (availability[day] && Array.isArray(availability[day]) && availability[day].length > 0) {
         availability[day].forEach(slot => {
-          timeRanges.push(`${day}: ${slot.start}-${slot.end}`);
+          const normalizedSlot = normalizeTimeSlot(slot);
+          timeRanges.push(`${day}: ${normalizedSlot}`);
         });
       }
     });
@@ -1256,11 +1268,11 @@ const InterviewScheduler = () => {
                                  <div key={day} className="flex flex-wrap gap-1 items-center">
                                    <span className="font-medium text-gray-700 min-w-[35px]">{day}:</span>
                                    <div className="flex flex-wrap gap-1">
-                                     {panelist.availability[day].map((timeSlot, index) => (
-                                       <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                         {timeSlot}
-                                       </span>
-                                     ))}
+                                      {panelist.availability[day].map((timeSlot, index) => (
+                                        <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                          {normalizeTimeSlot(timeSlot)}
+                                        </span>
+                                      ))}
                                    </div>
                                  </div>
                                );

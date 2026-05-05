@@ -3,443 +3,190 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { Loader, Users, MessageSquare, User, Mail, Briefcase, Calendar, Target, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader, MessageSquare, User, Briefcase, Target, Lightbulb } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
 import ExpandableText from './ExpandableText';
 
 interface JobRequirement {
   id: number;
-  position_name: string;
-  description: string;
-  skills: string[];
+  job_title: string;
+  job_description: string;
+  required_skills: string[];
   tech_stack: string[];
-  experience_required: number;
+  min_experience_years: number;
   created_at: string;
 }
 
-interface ShortlistedCandidate {
-  candidate_email: string;
-  candidate_name: string;
-  experience: number;
-  reason: string;
-  worked_on: string;
-  shortlisted_position_name: string;
+interface QASet {
+  questions: Array<{ question: string; answer: string }>;
+  analysis_question: { question: string; answer: string };
 }
 
 interface GeneratedQuestions {
   candidate_name: string;
-  position_name: string;
-  questions: {
-    level_1: Array<{
-      question: string;
-      answer: string | { code?: string; output?: string };
-    }>;
-    level_2: Array<{
-      question: string;
-      answer: string | { code?: string; output?: string };
-    }>;
-    level_3: Array<{
-      question: string;
-      answer: string | { code?: string; output?: string };
-    }>;
-  };
-  skills_used: string;
+  job_title: string;
+  basic: QASet;
+  medium: QASet;
+  hard: QASet;
 }
+
+const LEVEL_META: Record<string, { title: string; classes: string; badge: string }> = {
+  basic: { title: 'Basic Level', classes: 'border-green-200 bg-green-50', badge: 'bg-green-100 text-green-800' },
+  medium: { title: 'Medium Level', classes: 'border-orange-200 bg-orange-50', badge: 'bg-orange-100 text-orange-800' },
+  hard: { title: 'Hard Level', classes: 'border-red-200 bg-red-50', badge: 'bg-red-100 text-red-800' },
+};
 
 const QuestionGenerator = () => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirement[]>([]);
-  const [selectedPosition, setSelectedPosition] = useState<string>('');
-  const [shortlistedCandidates, setShortlistedCandidates] = useState<ShortlistedCandidate[]>([]);
-  const [generatedQuestions, setGeneratedQuestions] = useState<Record<string, GeneratedQuestions>>({});
-  const [loadingJobRequirements, setLoadingJobRequirements] = useState(false);
-  const [loadingCandidates, setLoadingCandidates] = useState(false);
-  const [expandedQuestions, setExpandedQuestions] = useState<Record<string, Record<string, boolean>>>({});
-  const [generatingQuestions, setGeneratingQuestions] = useState<Record<string, boolean>>({});
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [generated, setGenerated] = useState<GeneratedQuestions | null>(null);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
-  // Fetch job requirements when component mounts
   useEffect(() => {
     fetchJobRequirements();
   }, []);
 
   const fetchJobRequirements = async () => {
-    setLoadingJobRequirements(true);
+    setLoadingJobs(true);
     try {
       const response = await fetch(API_ENDPOINTS.JOB_REQUIREMENTS);
       if (response.ok) {
         const data = await response.json();
         setJobRequirements(data);
-        console.log('Job requirements fetched:', data);
       } else {
-        console.error('Failed to fetch job requirements:', response.statusText);
-        toast({
-          title: "Error",
-          description: "Failed to fetch job requirements. Please try again.",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Failed to fetch job requirements.", variant: "destructive" });
       }
     } catch (error) {
-      console.error('Error fetching job requirements:', error);
-      toast({
-        title: "Network Error",
-        description: "Error fetching job requirements. Please check your connection.",
-        variant: "destructive"
-      });
+      toast({ title: "Network Error", description: "Error fetching job requirements.", variant: "destructive" });
     } finally {
-      setLoadingJobRequirements(false);
+      setLoadingJobs(false);
     }
   };
 
-  const fetchShortlistedCandidates = async () => {
-    if (!selectedPosition) {
-      toast({
-        title: "Selection Required",
-        description: "Please select a position first.",
-        variant: "destructive"
-      });
+  const generateQuestions = async () => {
+    if (!selectedJobId) {
+      toast({ title: "Selection Required", description: "Please select a job first.", variant: "destructive" });
       return;
     }
-
-    setLoadingCandidates(true);
+    setGenerating(true);
+    setGenerated(null);
     try {
-      const response = await fetch(`${API_ENDPOINTS.SHORTLISTED_RESUMES}?shortlisted_position_name=${encodeURIComponent(selectedPosition)}`);
+      const response = await fetch(API_ENDPOINTS.GENERATE_QUESTIONS(Number(selectedJobId)));
       if (response.ok) {
         const data = await response.json();
-        setShortlistedCandidates(data);
-        console.log('Shortlisted candidates fetched:', data);
-        toast({
-          title: "Success!",
-          description: `Found ${data.length} shortlisted candidates for ${selectedPosition}!`,
-        });
+        setGenerated(data);
+        toast({ title: "Success!", description: `Questions generated for ${data.candidate_name || 'candidate'}.` });
       } else {
-        console.error('Failed to fetch shortlisted candidates:', response.statusText);
-        toast({
-          title: "Error",
-          description: "Failed to fetch shortlisted candidates. Please try again.",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Failed to generate questions.", variant: "destructive" });
       }
     } catch (error) {
-      console.error('Error fetching shortlisted candidates:', error);
-      toast({
-        title: "Network Error",
-        description: "Error fetching shortlisted candidates. Please check your connection.",
-        variant: "destructive"
-      });
+      toast({ title: "Network Error", description: "Error generating questions.", variant: "destructive" });
     } finally {
-      setLoadingCandidates(false);
+      setGenerating(false);
     }
   };
 
-  const generateQuestions = async (candidate: ShortlistedCandidate) => {
-    const candidateKey = `${candidate.candidate_name}-${candidate.shortlisted_position_name}`;
-    setGeneratingQuestions(prev => ({ ...prev, [candidateKey]: true }));
-
-    try {
-      const response = await fetch('http://localhost:5002/generate-questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          candidate_name: candidate.candidate_name,
-          position_name: candidate.shortlisted_position_name
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setGeneratedQuestions(prev => ({ ...prev, [candidateKey]: data }));
-        console.log('Questions generated for:', candidate.candidate_name, data);
-        toast({
-          title: "Success!",
-          description: `Interview questions generated for ${candidate.candidate_name}!`,
-        });
-      } else {
-        console.error('Failed to generate questions:', response.statusText);
-        toast({
-          title: "Error",
-          description: "Failed to generate questions. Please try again.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error generating questions:', error);
-      toast({
-        title: "Network Error",
-        description: "Error generating questions. Please check your connection.",
-        variant: "destructive"
-      });
-    } finally {
-      setGeneratingQuestions(prev => ({ ...prev, [candidateKey]: false }));
-    }
-  };
-
-  const renderAnswer = (answer: string | { code?: string; output?: string }) => {
-    if (typeof answer === 'string') {
-      return <ExpandableText text={answer} className="text-sm text-muted-foreground mt-2" />;
-    } else if (answer && typeof answer === 'object') {
-      return (
-        <div className="space-y-3 mt-2">
-          {answer.code && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Code Solution:</p>
-              <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm overflow-x-auto border">
-                <code>{answer.code}</code>
-              </pre>
+  const renderLevel = (levelKey: 'basic' | 'medium' | 'hard', data: QASet) => {
+    const meta = LEVEL_META[levelKey];
+    return (
+      <Card key={levelKey} className={`border ${meta.classes}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-base">
+            <span>{meta.title}</span>
+            <span className={`text-xs px-2 py-1 rounded-full ${meta.badge}`}>
+              {data.questions.length} questions
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {data.questions.map((q, i) => (
+            <div key={i} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-current">
+              <p className="font-medium text-sm mb-2">Q{i + 1}. {q.question}</p>
+              <ExpandableText text={q.answer} className="text-sm text-muted-foreground" maxLength={200} />
             </div>
-          )}
-          {answer.output && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Expected Output:</p>
-              <div className="bg-gray-100 border border-gray-200 p-3 rounded-lg">
-                <code className="text-sm text-gray-800">{answer.output}</code>
+          ))}
+          {data.analysis_question && (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="w-4 h-4 text-blue-600" />
+                <p className="text-sm font-semibold text-blue-900">Analysis Question</p>
               </div>
+              <p className="font-medium text-sm mb-2">{data.analysis_question.question}</p>
+              <ExpandableText text={data.analysis_question.answer} className="text-sm text-muted-foreground" maxLength={200} />
             </div>
           )}
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const toggleQuestionExpansion = (candidateKey: string, level: string) => {
-    setExpandedQuestions(prev => ({
-      ...prev,
-      [candidateKey]: {
-        ...prev[candidateKey],
-        [level]: !prev[candidateKey]?.[level]
-      }
-    }));
-  };
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'level_1':
-        return 'border-green-200 bg-green-50';
-      case 'level_2':
-        return 'border-orange-200 bg-orange-50';
-      case 'level_3':
-        return 'border-red-200 bg-red-50';
-      default:
-        return 'border-blue-200 bg-blue-50';
-    }
-  };
-
-  const getLevelTitle = (level: string) => {
-    switch (level) {
-      case 'level_1':
-        return 'Beginner Level';
-      case 'level_2':
-        return 'Intermediate Level';
-      case 'level_3':
-        return 'Advanced Level';
-      default:
-        return level.replace('_', ' ').toUpperCase();
-    }
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-2 sm:py-8 sm:px-4">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Interview Question Generator
-          </h1>
-          <p className="text-lg text-gray-600">
-            Generate tailored interview questions for shortlisted candidates
-          </p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Interview Question Generator</h1>
+          <p className="text-lg text-gray-600">Generate tailored interview questions per job</p>
         </div>
 
-        {/* Position Selection */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5" />
-              Select Position
+              Select Job
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4 items-end">
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Job Position
-                </label>
-                <Select 
-                  value={selectedPosition} 
-                  onValueChange={setSelectedPosition}
-                  disabled={loadingJobRequirements}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
+                <Select value={selectedJobId} onValueChange={setSelectedJobId} disabled={loadingJobs}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a position..." />
+                    <SelectValue placeholder={loadingJobs ? 'Loading jobs...' : 'Select a job...'} />
                   </SelectTrigger>
                   <SelectContent>
                     {jobRequirements.map((job) => (
-                      <SelectItem key={job.id} value={job.position_name}>
-                        {job.position_name}
+                      <SelectItem key={job.id} value={String(job.id)}>
+                        {job.job_title}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <Button 
-                onClick={fetchShortlistedCandidates}
-                disabled={!selectedPosition || loadingCandidates}
-                className="flex items-center gap-2"
-              >
-                {loadingCandidates ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    Loading...
-                  </>
+              <Button onClick={generateQuestions} disabled={!selectedJobId || generating} className="flex items-center gap-2">
+                {generating ? (
+                  <><Loader className="w-4 h-4 animate-spin" /> Generating...</>
                 ) : (
-                  <>
-                    <Users className="w-4 h-4" />
-                    Shortlisted Candidates
-                  </>
+                  <><MessageSquare className="w-4 h-4" /> Generate Questions</>
                 )}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Shortlisted Candidates */}
-        {shortlistedCandidates.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {shortlistedCandidates.map((candidate, index) => {
-              const candidateKey = `${candidate.candidate_name}-${candidate.shortlisted_position_name}`;
-              const isGenerating = generatingQuestions[candidateKey];
-              const hasQuestions = generatedQuestions[candidateKey];
+        {generated && (
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold">{generated.candidate_name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-muted-foreground" />
+                    <span>{generated.job_title}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              return (
-                <Card key={index} className="relative">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <User className="w-5 h-5" />
-                      {candidate.candidate_name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{candidate.candidate_email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Briefcase className="w-4 h-4 text-muted-foreground" />
-                        <span>{candidate.experience} years experience</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span>{candidate.shortlisted_position_name}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Shortlisting Reason:</p>
-                        <ExpandableText 
-                          text={candidate.reason} 
-                          className="text-sm text-muted-foreground"
-                          maxLength={100}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">Previous Work:</p>
-                        <ExpandableText 
-                          text={candidate.worked_on} 
-                          className="text-sm text-muted-foreground"
-                          maxLength={100}
-                        />
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={() => generateQuestions(candidate)}
-                      disabled={isGenerating}
-                      className="w-full flex items-center gap-2"
-                      variant={hasQuestions ? "secondary" : "default"}
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader className="w-4 h-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare className="w-4 h-4" />
-                          {hasQuestions ? "Regenerate Questions" : "Generate Questions"}
-                        </>
-                      )}
-                    </Button>
-
-                    {/* Display Generated Questions */}
-                    {hasQuestions && (
-                      <div className="mt-4 space-y-3">
-                        <h4 className="font-semibold text-sm">Generated Questions:</h4>
-                        {Object.entries(hasQuestions.questions).map(([level, questions]) => {
-                          const isExpanded = expandedQuestions[candidateKey]?.[level] || false;
-                          const questionsToShow = isExpanded ? questions : questions.slice(0, 2);
-                          const remainingCount = questions.length - 2;
-                          
-                          return (
-                            <div key={level} className={`p-4 rounded-lg border ${getLevelColor(level)}`}>
-                              <h5 className="font-medium text-sm mb-3">{getLevelTitle(level)}</h5>
-                              <div className="space-y-4">
-                                {questionsToShow.map((q, qIndex) => (
-                                  <div key={qIndex} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-current">
-                                    <p className="font-medium text-sm leading-relaxed mb-2">{q.question}</p>
-                                    {renderAnswer(q.answer)}
-                                  </div>
-                                ))}
-                                {remainingCount > 0 && (
-                                  <button
-                                    onClick={() => toggleQuestionExpansion(candidateKey, level)}
-                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 transition-colors"
-                                  >
-                                    {isExpanded ? (
-                                      <>
-                                        <ChevronUp className="w-3 h-3" />
-                                        Show less
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ChevronDown className="w-3 h-3" />
-                                        +{remainingCount} more questions
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {hasQuestions.skills_used && (
-                          <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded">
-                            <p className="font-medium">Skills Assessed:</p>
-                            <p>{hasQuestions.skills_used}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {shortlistedCandidates.length === 0 && selectedPosition && !loadingCandidates && (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-2">
-              No Shortlisted Candidates Found
-            </h3>
-            <p className="text-gray-500">
-              There are no shortlisted candidates for the selected position.
-            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {generated.basic && renderLevel('basic', generated.basic)}
+              {generated.medium && renderLevel('medium', generated.medium)}
+              {generated.hard && renderLevel('hard', generated.hard)}
+            </div>
           </div>
         )}
       </div>

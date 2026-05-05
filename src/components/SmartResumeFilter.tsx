@@ -523,8 +523,8 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
                     </SelectTrigger>
                     <SelectContent>
                       {availableJobRequirements.map((job) => (
-                        <SelectItem key={job.id} value={job.position_name}>
-                          {job.position_name}
+                        <SelectItem key={job.id} value={job.job_title}>
+                          {job.job_title}
                         </SelectItem>
                       ))}
                     </SelectContent>

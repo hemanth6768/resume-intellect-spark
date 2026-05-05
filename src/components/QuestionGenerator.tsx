@@ -71,10 +71,19 @@ const QuestionGenerator = () => {
       toast({ title: "Selection Required", description: "Please select a job first.", variant: "destructive" });
       return;
     }
+    if (!resumeFile) {
+      toast({ title: "Resume Required", description: "Please upload a resume PDF.", variant: "destructive" });
+      return;
+    }
     setGenerating(true);
     setGenerated(null);
     try {
-      const response = await fetch(API_ENDPOINTS.GENERATE_QUESTIONS(Number(selectedJobId)));
+      const formData = new FormData();
+      formData.append('file', resumeFile);
+      const response = await fetch(API_ENDPOINTS.GENERATE_QUESTIONS(Number(selectedJobId)), {
+        method: 'POST',
+        body: formData,
+      });
       if (response.ok) {
         const data = await response.json();
         setGenerated(data);

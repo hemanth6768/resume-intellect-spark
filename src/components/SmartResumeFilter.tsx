@@ -38,11 +38,11 @@ interface ResumeAnalysis {
 
 interface JobRequirement {
   id: number;
-  position_name: string;
-  description: string;
-  skills: string[];
+  job_title: string;
+  job_description: string;
+  required_skills: string[];
   tech_stack: string[];
-  experience_required: number;
+  min_experience_years: number;
   created_at: string;
 }
 

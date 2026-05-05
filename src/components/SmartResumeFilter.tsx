@@ -283,6 +283,16 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
       return;
     }
     
+    const selectedJob = availableJobRequirements.find(j => j.job_title === (selectedJobTitle || jobTitleToUse));
+    if (!selectedJob) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a valid job position from the list",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     const newAnalyses: ResumeAnalysis[] = [];
     
@@ -291,11 +301,10 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
         const file = resumes[i];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('position_name', jobTitleToUse);
 
-        console.log(`Analyzing resume: ${file.name} for job: ${jobTitleToUse}`);
+        console.log(`Analyzing resume: ${file.name} for job_id: ${selectedJob.id}`);
         
-        const response = await fetch('http://localhost:5001/shortlist-resume', {
+        const response = await fetch(API_ENDPOINTS.ANALYZE_RESUME(selectedJob.id), {
           method: 'POST',
           body: formData
         });

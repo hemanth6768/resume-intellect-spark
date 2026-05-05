@@ -833,7 +833,7 @@ const InterviewScheduler = () => {
 
       console.log('Checking availability with payload:', payload);
 
-      const response = await fetch('http://localhost:5000/check-availability', {
+      const response = await fetch('http://localhost:8000/check-availability', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

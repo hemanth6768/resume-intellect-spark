@@ -19,5 +19,6 @@ export const API_ENDPOINTS = {
   ASSIGN_PANEL: `${API_BASE_URL}/assign-panel`,
   JOB_REQUIREMENTS: `${API_BASE_URL}/api/v1/job-requirements`,
   SAVE_SHORTLISTED_RESUME: `${API_BASE_URL}/shortlist-resume/save`,
-  ANALYZE_RESUME: (jobId: number) => `${API_BASE_URL}/api/v1/resume/analyze?job_id=${jobId}`
+  ANALYZE_RESUME: (jobId: number) => `${API_BASE_URL}/api/v1/resume/analyze?job_id=${jobId}`,
+  GENERATE_QUESTIONS: (jobId: number) => `${API_BASE_URL}/api/v1/questions/generate?job_id=${jobId}`
 };

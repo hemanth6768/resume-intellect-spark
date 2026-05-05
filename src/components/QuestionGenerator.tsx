@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { Loader, MessageSquare, User, Briefcase, Target, Lightbulb } from 'lucide-react';
+import { Loader, MessageSquare, User, Briefcase, Target, Lightbulb, Upload, X, FileText } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
 import ExpandableText from './ExpandableText';
 

@@ -39,6 +39,7 @@ const LEVEL_META: Record<string, { title: string; classes: string; badge: string
 const QuestionGenerator = () => {
   const [jobRequirements, setJobRequirements] = useState<JobRequirement[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [generated, setGenerated] = useState<GeneratedQuestions | null>(null);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [generating, setGenerating] = useState(false);

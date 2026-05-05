@@ -156,14 +156,14 @@ const SmartResumeFilter: React.FC<SmartResumeFilterProps> = ({ showOnlyRequireme
     
     const payload = {
       job_title: jobRequirements.jobTitle,
-      description: jobRequirements.description,
-      skills: jobRequirements.requiredSkills,
-      min_experience: jobRequirements.minExperience,
+      job_description: jobRequirements.description,
+      required_skills: jobRequirements.requiredSkills,
+      min_experience_years: jobRequirements.minExperience,
       tech_stack: jobRequirements.techStack
     };
 
     try {
-      const response = await fetch('http://localhost:5000/add-requirement', {
+      const response = await fetch(API_ENDPOINTS.JOB_REQUIREMENTS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

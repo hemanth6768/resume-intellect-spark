@@ -147,7 +147,7 @@ const QuestionGenerator = () => {
               Select Job
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
@@ -164,14 +164,45 @@ const QuestionGenerator = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={generateQuestions} disabled={!selectedJobId || generating} className="flex items-center gap-2">
-                {generating ? (
-                  <><Loader className="w-4 h-4 animate-spin" /> Generating...</>
-                ) : (
-                  <><MessageSquare className="w-4 h-4" /> Generate Questions</>
-                )}
-              </Button>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Resume (PDF)</label>
+              {!resumeFile ? (
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-primary hover:bg-gray-50 transition-colors">
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Click to upload resume PDF</span>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                    <span className="text-sm truncate">{resumeFile.name}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setResumeFile(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={generateQuestions}
+              disabled={!selectedJobId || !resumeFile || generating}
+              className="w-full sm:w-auto flex items-center gap-2"
+            >
+              {generating ? (
+                <><Loader className="w-4 h-4 animate-spin" /> Generating...</>
+              ) : (
+                <><MessageSquare className="w-4 h-4" /> Generate Questions</>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
